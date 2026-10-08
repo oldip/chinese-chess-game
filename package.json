@@ -1,0 +1,12 @@
+{
+  "name": "chinese-chess-game",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/serve.cjs",
+    "test": "node tests/pikafish.js && node tests/difficulty.js && node tests/repetition.js && node tests/rules.js && node tests/lifecycle.js",
+    "test:browser": "node tests/browser.cjs",
+    "verify:engine": "node scripts/verify-engine.cjs",
+    "build": "node scripts/build.cjs"
+  },
+  "devDependencies": { "playwright": "1.58.2" }
+}

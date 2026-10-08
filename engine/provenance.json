@@ -1,0 +1,44 @@
+{
+  "release": "Pikafish-2023-03-05",
+  "variant": "wasm-single",
+  "runtimeUciName": "Pikafish dev 2023-03-08",
+  "runtimeNameExplanation": "Published release binary identifies as dev plus __DATE__ build date; do not confuse that with the release tag.",
+  "distribution": "https://github.com/ousc/Pikafish-wasm/releases/download/Pikafish-2023-03-05/Pikafish-wasm.2023-03-05.zip",
+  "sourceCommit": "c01a40cf74b9cec773379d5f5fea835b1fbc0b9f",
+  "source": "https://github.com/ousc/Pikafish-wasm/tree/c01a40cf74b9cec773379d5f5fea835b1fbc0b9f",
+  "officialNetRelease": "https://github.com/official-pikafish/Pikafish/releases/tag/Pikafish-2023-03-05",
+  "nnue": {
+    "file": "pikafish.data",
+    "format": "Unmodified raw pikafish.nnue, preloaded as /pikafish.nnue by upstream loader",
+    "sha256": "9bed5ed4f2f356d361c859728c68b1f9103fa982e5d9fe658b38f71dcbcec0a9"
+  },
+  "modifications": "None to distributed engine/loader/NNUE. Adapter and Worker wrapper are separate files.",
+  "compilation": "make -j build ARCH=wasm-single COMP=emscripten",
+  "toolchain": "Release publisher did not pin exact Emscripten version. Original binary retained; byte-identical rebuild not claimed.",
+  "files": {
+    "pikafish.js": {
+      "bytes": 174106,
+      "sha256": "f3771bcdbd344d1efa9b17092b0b72bca708633a66eb7d7a0add248049c5a4d5"
+    },
+    "pikafish.wasm": {
+      "bytes": 582152,
+      "sha256": "d2f21bfed669fc66546cbe312d25796ab65a13ba7d5277305c7ecdf3a5a043c3"
+    },
+    "pikafish.data": {
+      "bytes": 18070595,
+      "sha256": "9bed5ed4f2f356d361c859728c68b1f9103fa982e5d9fe658b38f71dcbcec0a9"
+    },
+    "pikafish-source.zip": {
+      "bytes": 285704,
+      "sha256": "c559938bf16c5b8b277eed94ad914a739353c6170e92d05c499fb0059071bafa"
+    },
+    "Copying.txt": {
+      "bytes": 35821,
+      "sha256": "0b383d5a63da644f628d99c33976ea6487ed89aaa59f0b3257992deac1171e6b"
+    },
+    "AUTHORS": {
+      "bytes": 5835,
+      "sha256": "ec5e2b172f8a5b23cd5e564500b73ccc2d4f4df6ba852649956984b125abe16f"
+    }
+  }
+}

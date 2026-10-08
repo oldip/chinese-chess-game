@@ -1,0 +1,15 @@
+{
+  "id": "./",
+  "name": "中國象棋 · Pikafish",
+  "short_name": "中國象棋",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5efe2",
+  "theme_color": "#667eea",
+  "icons": [
+    { "src": "icons/chess-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/chess-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

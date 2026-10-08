@@ -1,0 +1,105 @@
+{
+  "version": "pikafish-2c91dfde88fc3b8d",
+  "files": [
+    {
+      "path": "index.html",
+      "bytes": 5950,
+      "sha256": "ecf67cf701fb3c0ef66380e79df660d365d755ea40bea863b6959854576c83ec"
+    },
+    {
+      "path": "styles.css",
+      "bytes": 11248,
+      "sha256": "f0c7da26008d30db051d2a98ed1ea80caf5cd72a8d32a6295d0fb1709de570df"
+    },
+    {
+      "path": "game.js",
+      "bytes": 112695,
+      "sha256": "61694e8b820d4b3b5af3525ea4ef0b139fda17e71ffb728562a6ec56a4830640"
+    },
+    {
+      "path": "pikafish-adapter.js",
+      "bytes": 10847,
+      "sha256": "a960c5fd847ec034c9b6dcce7276fe32e2dc4d8eda6f62e5fbc12583f88fdad5"
+    },
+    {
+      "path": "pikafish-worker.js",
+      "bytes": 2890,
+      "sha256": "9dcbe0bfeab34290be9effc6b7dd6b60274870c42c65735b71c209ce5a53e86a"
+    },
+    {
+      "path": "pwa.js",
+      "bytes": 2393,
+      "sha256": "3de6c4f1a46a9514116dd2cd551c009f9f1be85bf915bdd865ec9b707ee590d7"
+    },
+    {
+      "path": "manifest.webmanifest",
+      "bytes": 445,
+      "sha256": "12425ee1ce807e385d7a103aa9671f53d5059c561148d369da6d2fe14f7673d6"
+    },
+    {
+      "path": "icons/chess-192.png",
+      "bytes": 13022,
+      "sha256": "3afa7af03a25e8f07a988f6550bcf9114da74706130b1345bc97dd445e7f5a0c"
+    },
+    {
+      "path": "icons/chess-512.png",
+      "bytes": 4356,
+      "sha256": "4dea7395f1498f10e0b2d04503a33ac7dc1b19b85993f6e8cf5259d04ce45bff"
+    },
+    {
+      "path": "icons/chess.svg",
+      "bytes": 371,
+      "sha256": "72828639db38a224f3ed40e8d2b546a60cc8b6a889bc3ee45ad5c767dc63f8cc"
+    },
+    {
+      "path": "engine/AUTHORS",
+      "bytes": 5835,
+      "sha256": "ec5e2b172f8a5b23cd5e564500b73ccc2d4f4df6ba852649956984b125abe16f"
+    },
+    {
+      "path": "engine/Copying.txt",
+      "bytes": 35821,
+      "sha256": "0b383d5a63da644f628d99c33976ea6487ed89aaa59f0b3257992deac1171e6b"
+    },
+    {
+      "path": "engine/NNUE-License.md",
+      "bytes": 1097,
+      "sha256": "331463a6894a077d7de9610541db27fd1365c870d0362fe8135b96706f84eda0"
+    },
+    {
+      "path": "engine/official-release-README.md",
+      "bytes": 16527,
+      "sha256": "36776e1d86cb1a3d96a515c1ae7d13db7ffa0d6390ee4349b8ec510cc4439091"
+    },
+    {
+      "path": "engine/pikafish-source.zip",
+      "bytes": 285704,
+      "sha256": "c559938bf16c5b8b277eed94ad914a739353c6170e92d05c499fb0059071bafa"
+    },
+    {
+      "path": "engine/pikafish.data",
+      "bytes": 18070595,
+      "sha256": "9bed5ed4f2f356d361c859728c68b1f9103fa982e5d9fe658b38f71dcbcec0a9"
+    },
+    {
+      "path": "engine/pikafish.js",
+      "bytes": 174106,
+      "sha256": "f3771bcdbd344d1efa9b17092b0b72bca708633a66eb7d7a0add248049c5a4d5"
+    },
+    {
+      "path": "engine/pikafish.wasm",
+      "bytes": 582152,
+      "sha256": "d2f21bfed669fc66546cbe312d25796ab65a13ba7d5277305c7ecdf3a5a043c3"
+    },
+    {
+      "path": "engine/provenance.json",
+      "bytes": 2010,
+      "sha256": "e74b44914ac52362006df22b746468f1e3014f3131bedef6de129b80e4c90251"
+    },
+    {
+      "path": "engine/SHA256SUMS",
+      "bytes": 476,
+      "sha256": "8c863c187dcfec046e9b5a9a83ec729f3b0d97830e83f0827925071f74ee723f"
+    }
+  ]
+}

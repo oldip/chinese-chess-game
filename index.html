@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>&#20013;&#22283;&#35937;&#26827;</title>
-    <link rel="stylesheet" href="styles.css?v=20260330-opening1">
+    <meta name="theme-color" content="#667eea">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/chess.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="game-container">
@@ -43,9 +46,20 @@
                     </button>
                 </div>
             </div>
+            <div class="setup-group engine-controls">
+                <label>Hash <select id="engine-hash"><option value="8">8 MB</option><option value="16" selected>16 MB</option><option value="32">32 MB</option><option value="64">64 MB</option></select></label>
+                <label>深度上限 <select id="engine-depth"><option value="0">按思考時間</option><option value="4">4</option><option value="8">8</option><option value="12">12</option><option value="20">20</option></select></label>
+                <p class="setup-copy">本機 Pikafish · 單線程。初／中／高級使用 Skill 0／10／20；並非經校準的棋力等級。</p>
+            </div>
             <div id="setup-status" class="setup-status"></div>
             <button id="start-game-button" type="button" class="start-game-button" onclick="startConfiguredGame()">&#38283;&#22987;&#23565;&#23616;</button>
         </section>
+        <div class="engine-panel" aria-live="polite">
+            <span id="engine-status">Pikafish 尚未載入 · 首次約下載 19 MB</span>
+            <button type="button" class="secondary-button" onclick="retryComputerMove()">重試 AI</button>
+            <div id="offline-status" data-ready="false">離線資源尚未快取完成</div>
+            <button type="button" class="secondary-button" onclick="repairOfflineCache()">修復快取</button>
+        </div>
         <div id="game-layout" class="game-layout">
             <section class="board-column">
                 <div class="info-panel">
@@ -66,7 +80,8 @@
             </aside>
         </div>
     </div>
-    <script src="engine-core.js?v=20260330-opening1"></script>
-    <script src="game.js?v=20260330-opening1"></script>
+    <script src="pikafish-adapter.js"></script>
+    <script src="game.js"></script>
+    <script src="pwa.js"></script>
 </body>
 </html>

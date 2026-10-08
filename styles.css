@@ -558,3 +558,19 @@ button:hover {
         max-height: 280px;
     }
 }
+.engine-panel {
+    margin: 12px 0;
+    font-size: 13px;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.engine-panel button {
+    display: inline-block;
+    padding: 5px 12px;
+    margin: 4px;
+}
+
+.engine-controls select {
+    margin: 4px 12px 4px 4px;
+}

@@ -3,11 +3,7 @@ const BLACK_COLOR = 'b';
 const MATE_SCORE = 900000;
 const AI_THINK_DELAY_MS = 260;
 const MOVE_ANIMATION_MS = 220;
-const AI_WORKER_TIMEOUT_FLOOR_MS = 2600;
-const AI_WORKER_TIMEOUT_PADDING_MS = 900;
-const PONDER_TIMEOUT_PADDING_MS = 1200;
 const SEARCH_TIME_CHECK_INTERVAL = 32;
-const ASSET_VERSION = '20260330-opening1';
 const GAME_MODES = {
     ai: 'ai',
     local: 'local'
@@ -325,13 +321,6 @@ let pendingAnimatedMove = null;
 let setupOpen = true;
 let audioContext = null;
 const transpositionTable = new Map();
-let aiWorker = null;
-let aiRequestId = 0;
-let pendingAiJob = null;
-let ponderWorker = null;
-let ponderRequestId = 0;
-let pendingPonderJob = null;
-let ponderedReplies = [];
 let searchDeadline = 0;
 let searchNodeCounter = 0;
 let searchTimedOut = false;
@@ -2465,305 +2454,81 @@ function applyPracticalOpeningChoice(activeBoard, color, legalMoves, candidateMo
     return candidateMove;
 }
 
-function disposeAiWorker() {
-    if (aiWorker) {
-        aiWorker.terminate();
-        aiWorker = null;
-    }
+let pikafishEngine = null;
+let aiGeneration = 0;
+let activeSearchGeneration = null;
+let scheduledAiTimer = null;
+let engineStatus = 'Pikafish 尚未載入';
+let engineGameGeneration = -1;
+
+function updateEngineStatus(data) {
+    engineStatus = data.stage === 'ready' ? 'Pikafish 已就緒 · 本機單線程'
+        : `載入 ${data.stage}：${Math.round(data.loaded / data.total * 100)}%`;
+    const element = document.getElementById('engine-status');
+    if (element) element.textContent = engineStatus;
 }
 
-function disposePonderWorker() {
-    if (ponderWorker) {
-        ponderWorker.terminate();
-        ponderWorker = null;
+function ensurePikafish() {
+    if (!pikafishEngine) {
+        pikafishEngine = new PikafishEngine({ onProgress: updateEngineStatus });
     }
+    return pikafishEngine;
 }
 
 function cancelPendingAiJob() {
-    aiRequestId++;
-    if (pendingAiJob) {
-        if (pendingAiJob.timeoutId) {
-            clearTimeout(pendingAiJob.timeoutId);
-        }
-        pendingAiJob = null;
-        disposeAiWorker();
-    }
+    aiGeneration++;
+    activeSearchGeneration = null;
+    if (scheduledAiTimer !== null) clearTimeout(scheduledAiTimer);
+    scheduledAiTimer = null;
+    if (pikafishEngine) pikafishEngine.stop().catch(() => {});
 }
 
-function clearPonderedReply() {
-    ponderedReplies = [];
+// Background speculation is disabled: only the current AI turn consumes CPU.
+function cancelPendingPonderJob() {}
+function startPondering() {}
+
+function scheduleComputerMove() {
+    if (scheduledAiTimer !== null) clearTimeout(scheduledAiTimer);
+    const generation = aiGeneration;
+    scheduledAiTimer = window.setTimeout(() => {
+        scheduledAiTimer = null;
+        if (generation === aiGeneration) computerMove();
+    }, AI_THINK_DELAY_MS);
 }
 
-function cancelPendingPonderJob(clearCache = true) {
-    ponderRequestId++;
-    if (pendingPonderJob) {
-        if (pendingPonderJob.timeoutId) {
-            clearTimeout(pendingPonderJob.timeoutId);
-        }
-        pendingPonderJob = null;
-        disposePonderWorker();
-    }
-    if (clearCache) {
-        clearPonderedReply();
-    }
-}
-
-function ensureAiWorker() {
-    if (typeof Worker === 'undefined' || typeof window === 'undefined') {
-        return null;
-    }
-
-    if (aiWorker) {
-        return aiWorker;
-    }
-
-    try {
-        aiWorker = new Worker(`ai-worker.js?v=${ASSET_VERSION}`);
-    } catch (error) {
-        aiWorker = null;
-        return null;
-    }
-
-    aiWorker.onmessage = event => {
-        const data = event.data || {};
-        if (!pendingAiJob || data.requestId !== pendingAiJob.requestId) {
-            return;
-        }
-
-        const job = pendingAiJob;
-        pendingAiJob = null;
-        clearTimeout(job.timeoutId);
-        job.resolve(data.result && data.result.move ? data.result.move : job.fallbackMove);
-    };
-
-    aiWorker.onerror = () => {
-        if (!pendingAiJob) {
-            disposeAiWorker();
-            return;
-        }
-
-        const job = pendingAiJob;
-        pendingAiJob = null;
-        clearTimeout(job.timeoutId);
-        disposeAiWorker();
-        job.resolve(job.fallbackMove);
-    };
-
-    return aiWorker;
-}
-
-function ensurePonderWorker() {
-    if (typeof Worker === 'undefined' || typeof window === 'undefined') {
-        return null;
-    }
-
-    if (ponderWorker) {
-        return ponderWorker;
-    }
-
-    try {
-        ponderWorker = new Worker(`ai-worker.js?v=${ASSET_VERSION}`);
-    } catch (error) {
-        ponderWorker = null;
-        return null;
-    }
-
-    ponderWorker.onmessage = event => {
-        const data = event.data || {};
-        if (!pendingPonderJob || data.requestId !== pendingPonderJob.requestId) {
-            return;
-        }
-
-        const job = pendingPonderJob;
-        pendingPonderJob = null;
-        clearTimeout(job.timeoutId);
-
-        if (
-            data.kind === 'ponder' &&
-            data.result &&
-            Array.isArray(data.result.lines) &&
-            data.result.lines.length > 0 &&
-            gameActive &&
-            currentPlayer === humanColor &&
-            moveSequence.length === job.sourceHistoryLength &&
-            getBoardKey(board, currentPlayer) === job.sourceBoardKey
-        ) {
-            ponderedReplies = data.result.lines
-                .filter(line => line && line.replyMove && line.targetBoardKey)
-                .map(line => ({
-                    sourceBoardKey: job.sourceBoardKey,
-                    sourceHistoryLength: job.sourceHistoryLength,
-                    targetBoardKey: line.targetBoardKey,
-                    targetHistoryLength: line.targetHistoryLength,
-                    predictedMove: line.predictedMove,
-                    replyMove: line.replyMove
-                }));
-        }
-    };
-
-    ponderWorker.onerror = () => {
-        if (!pendingPonderJob) {
-            disposePonderWorker();
-            return;
-        }
-
-        const job = pendingPonderJob;
-        pendingPonderJob = null;
-        clearTimeout(job.timeoutId);
-        disposePonderWorker();
-    };
-
-    return ponderWorker;
-}
-
-function consumePonderedReply(activeBoard, color, historySequence = moveSequence, legalMoves = null) {
-    if (!ponderedReplies.length) {
-        return null;
-    }
-
-    const activeBoardKey = getBoardKey(activeBoard, color);
-    const availableMoves = legalMoves || filterPlayableMoves(
-        activeBoard,
-        color,
-        getAllLegalMoves(activeBoard, color),
-        positionHistory,
-        historySequence
-    );
-
-    const matchedEntry = ponderedReplies.find(entry =>
-        entry.targetBoardKey === activeBoardKey &&
-        entry.targetHistoryLength === historySequence.length
-    ) || null;
-
-    ponderedReplies = ponderedReplies.filter(entry => entry.targetHistoryLength > historySequence.length);
-
-    if (!matchedEntry) {
-        return null;
-    }
-
-    const matched = availableMoves.find(candidate => sameMove(candidate, matchedEntry.replyMove)) || null;
-    clearPonderedReply();
-    return matched;
-}
-
-function startPondering() {
-    if (typeof window === 'undefined' || !gameActive || currentPlayer !== humanColor) {
-        return;
-    }
-
-    const worker = ensurePonderWorker();
-    if (!worker) {
-        return;
-    }
-
-    const legalMoves = filterPlayableMoves(board, currentPlayer, getAllLegalMoves(board, currentPlayer), positionHistory, moveSequence);
-    if (legalMoves.length === 0) {
-        return;
-    }
-
-    cancelPendingPonderJob(false);
-
-    const budgets = getPonderBudgets(board, legalMoves);
-    const requestId = ++ponderRequestId;
-    const sourceBoardKey = getBoardKey(board, currentPlayer);
-    const timeoutId = window.setTimeout(() => {
-        if (!pendingPonderJob || pendingPonderJob.requestId !== requestId) {
-            return;
-        }
-
-        pendingPonderJob = null;
-        disposePonderWorker();
-    }, budgets.predictTimeBudgetMs + budgets.replyTimeBudgetMs + PONDER_TIMEOUT_PADDING_MS);
-
-    pendingPonderJob = {
-        requestId,
-        timeoutId,
-        sourceBoardKey,
-        sourceHistoryLength: moveSequence.length
-    };
-
-    worker.postMessage({
-        kind: 'ponder',
-        requestId,
-        board: cloneBoard(board),
-        currentPlayer,
-        history: cloneMoveSequence(moveSequence),
-        positionHistory: clonePositionHistory(positionHistory),
-        candidateCount: budgets.candidateCount,
-        predictTimeBudgetMs: budgets.predictTimeBudgetMs,
-        replyTimeBudgetMs: budgets.replyTimeBudgetMs
-    });
-}
-
-function requestComputerMove(activeBoard, color, historySequence = moveSequence) {
-    const fallbackMove = getFallbackMove(activeBoard, color, historySequence);
+async function requestComputerMove(activeBoard, color, historySequence = moveSequence, generation = aiGeneration) {
     const legalMoves = filterPlayableMoves(activeBoard, color, getAllLegalMoves(activeBoard, color), positionHistory, historySequence);
-    const timeBudgetMs = getSearchTimeBudget(activeBoard, legalMoves);
-    const cachedMove = consumePonderedReply(activeBoard, color, historySequence, legalMoves);
-    if (cachedMove) {
-        return Promise.resolve(cachedMove);
+    if (!legalMoves.length) return null;
+    const engine = ensurePikafish();
+    const stale = () => generation !== aiGeneration;
+    const hash = Number(document.getElementById('engine-hash').value);
+    const depth = Number(document.getElementById('engine-depth').value);
+    const skill = { beginner: 0, intermediate: 10, advanced: 20 }[aiLevel] ?? 10;
+    await engine.init();
+    if (stale()) return null;
+    if (engineGameGeneration !== generation) {
+        await engine.reset();
+        if (stale()) return null;
+        engineGameGeneration = generation;
     }
-
-    cancelPendingPonderJob(false);
-
-    const worker = ensureAiWorker();
-
-    if (!worker || typeof window === 'undefined') {
-        return Promise.resolve(fallbackMove);
-    }
-
-    cancelPendingAiJob();
-
-    return new Promise(resolve => {
-        const requestId = ++aiRequestId;
-        const timeoutId = window.setTimeout(() => {
-            if (!pendingAiJob || pendingAiJob.requestId !== requestId) {
-                return;
-            }
-
-            const job = pendingAiJob;
-            pendingAiJob = null;
-            disposeAiWorker();
-            resolve(job.fallbackMove);
-        }, Math.max(AI_WORKER_TIMEOUT_FLOOR_MS, timeBudgetMs + AI_WORKER_TIMEOUT_PADDING_MS));
-
-        pendingAiJob = {
-            requestId,
-            resolve,
-            timeoutId,
-            fallbackMove
-        };
-
-        worker.postMessage({
-            kind: 'bestMove',
-            requestId,
-            board: cloneBoard(activeBoard),
-            currentPlayer: color,
-            history: cloneMoveSequence(historySequence),
-            positionHistory: clonePositionHistory(positionHistory),
-            timeBudgetMs
-        });
-    });
+    await engine.configure({ hash, skill, threads: 1 });
+    if (stale()) return null;
+    // Full history preserves repetition and reversible-move state inside Pikafish.
+    await engine.setPosition(boardToFen(initialBoard, RED_COLOR), historySequence.map(key => moveToUci(parseMoveKey(key))));
+    if (stale()) return null;
+    const move = await engine.getBestMove({ movetime: getSearchTimeBudget(activeBoard, legalMoves), depth,
+        searchmoves: legalMoves.map(moveToUci) });
+    if (stale()) return null;
+    if (!move || !legalMoves.some(candidate => sameMove(candidate, move)))
+        throw new Error('Pikafish 未回傳本局面可用的合法走法');
+    return move;
 }
 
-function chooseComputerMove(activeBoard, color = computerColor, historySequence = moveSequence) {
-    const engine = ensureEngineCore();
-    if (!engine) {
-        return getFallbackMove(activeBoard, color, historySequence);
-    }
-
-    const result = engine.computeBestMove({
-        board: cloneBoard(activeBoard),
-        currentPlayer: color,
-        history: cloneMoveSequence(historySequence),
-        positionHistory: clonePositionHistory(positionHistory),
-        timeBudgetMs: getSearchTimeBudget(
-            activeBoard,
-            filterPlayableMoves(activeBoard, color, getAllLegalMoves(activeBoard, color), positionHistory, historySequence)
-        )
-    });
-
-    return result.move || getFallbackMove(activeBoard, color, historySequence);
+function retryComputerMove() {
+    if (!gameActive || !isComputerTurn() || aiThinking) return;
+    aiThinking = true;
+    updateStatus();
+    scheduleComputerMove();
 }
 
 function getPiecePrefix(activeBoard, piece, row, col) {
@@ -3133,7 +2898,7 @@ function restoreState(snapshot) {
     currentPlayer = snapshot.currentPlayer;
     lastMove = snapshot.lastMove ? { ...snapshot.lastMove } : null;
     gameActive = snapshot.gameActive;
-    aiThinking = snapshot.aiThinking;
+    aiThinking = false;
     remainingUndos = snapshot.remainingUndos ?? getUndoLimit();
     statusMessage = snapshot.statusMessage;
     moveLog = cloneMoveLog(snapshot.moveLog || []);
@@ -3217,7 +2982,7 @@ function finalizeMove() {
         aiThinking = true;
         updateStatus();
         if (typeof window !== 'undefined') {
-            window.setTimeout(computerMove, AI_THINK_DELAY_MS);
+            scheduleComputerMove();
         }
     } else if (gameActive && hasComputerOpponent() && currentPlayer === humanColor) {
         startPondering();
@@ -3270,41 +3035,33 @@ function handleCellClick(row, col) {
 }
 
 async function computerMove() {
-    if (!gameActive || !isComputerTurn()) {
-        aiThinking = false;
-        updateStatus();
-        return;
-    }
-
+    if (!gameActive || !isComputerTurn() || activeSearchGeneration === aiGeneration) return;
+    const generation = aiGeneration;
+    activeSearchGeneration = generation;
+    aiThinking = true;
+    updateStatus();
     try {
-        const requestBoard = cloneBoard(board);
+        const requestKey = getBoardKey(board, currentPlayer);
         const requestHistory = cloneMoveSequence(moveSequence);
-        const move = await requestComputerMove(requestBoard, computerColor, requestHistory);
-
-        if (!gameActive || currentPlayer !== computerColor) {
-            return;
-        }
-
+        const move = await requestComputerMove(cloneBoard(board), computerColor, requestHistory, generation);
+        if (generation !== aiGeneration || !gameActive || !isComputerTurn() ||
+            requestKey !== getBoardKey(board, currentPlayer) || requestHistory.join('/') !== moveSequence.join('/')) return;
         const legalMoves = filterPlayableMoves(board, computerColor, getAllLegalMoves(board, computerColor), positionHistory, moveSequence);
-        const chosenMove = move
-            ? legalMoves.find(candidate => sameMove(candidate, move)) || getFallbackMove(board, computerColor, moveSequence)
-            : null;
-
-        if (!chosenMove) {
-            finalizeMove();
-            return;
-        }
-
+        if (!legalMoves.length) { finalizeMove(); return; }
+        const chosenMove = legalMoves.find(candidate => sameMove(candidate, move));
+        if (!chosenMove) throw new Error('Pikafish 回傳非法走法');
         performMove(chosenMove);
     } catch (error) {
-        const fallbackMove = getFallbackMove(board, computerColor, moveSequence);
-        if (gameActive && currentPlayer === computerColor && fallbackMove) {
-            performMove(fallbackMove);
-            return;
-        }
+        if (generation !== aiGeneration) return;
+        statusMessage = `Pikafish 載入或搜尋失敗：${error.message}。請連線後重試。`;
+        const element = document.getElementById('engine-status');
+        if (element) element.textContent = statusMessage;
     } finally {
-        aiThinking = false;
-        updateStatus();
+        if (generation === aiGeneration) {
+            activeSearchGeneration = null;
+            aiThinking = false;
+            updateStatus();
+        }
     }
 }
 
@@ -3412,7 +3169,7 @@ function setAiLevel(level) {
     if (gameActive && isComputerTurn() && typeof window !== 'undefined') {
         aiThinking = true;
         updateStatus();
-        window.setTimeout(computerMove, AI_THINK_DELAY_MS);
+        scheduleComputerMove();
     } else if (gameActive && hasComputerOpponent() && currentPlayer === humanColor) {
         startPondering();
     }
@@ -3459,13 +3216,22 @@ function resetGame() {
     if (isComputerTurn() && typeof window !== 'undefined') {
         aiThinking = true;
         updateStatus();
-        window.setTimeout(computerMove, AI_THINK_DELAY_MS);
+        scheduleComputerMove();
     } else if (hasComputerOpponent() && currentPlayer === humanColor) {
         startPondering();
     }
 }
 
 if (typeof window !== 'undefined') {
+    window.retryComputerMove = retryComputerMove;
+    window.addEventListener('pagehide', () => {
+        cancelPendingAiJob();
+        pikafishEngine?.destroy();
+        aiThinking = false;
+    });
+    window.addEventListener('pageshow', event => {
+        if (event.persisted && gameActive && isComputerTurn()) retryComputerMove();
+    });
     window.openSetupPanel = openSetupPanel;
     window.startConfiguredGame = startConfiguredGame;
     window.resetGame = resetGame;
@@ -3490,7 +3256,6 @@ if (typeof module !== 'undefined') {
         RED_COLOR,
         initialBoard,
         applyMoveToBoard,
-        chooseComputerMove,
         cloneBoard,
         cloneMoveSequence,
         clonePositionHistory,

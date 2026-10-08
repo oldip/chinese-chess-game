@@ -1,0 +1,7 @@
+* text=auto eol=lf
+# Keep distributed vendor bytes exactly as hashed; never apply CRLF conversion.
+engine/* -text
+*.wasm -text
+*.data -text
+*.zip -text
+*.png -text
