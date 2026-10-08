@@ -15,4 +15,21 @@ vm.runInContext("gameActive = true; setupOpen = false; aiThinking = true; curren
 handlers.get('pagehide')({ persisted: true });
 assert.equal(vm.runInContext('aiThinking', context), false, 'hidden AI search must clear thinking lock');
 assert.ok(handlers.has('pageshow'), 'restoring a bfcache page must resume the AI turn');
-console.log('page lifecycle cleanup passed');
+let scheduled = 0, evaluations = 0;
+context.window.setTimeout = () => { scheduled++; return 1; };
+context.resumedEvaluation = () => { evaluations++; };
+vm.runInContext(`
+    refreshPositionEvaluation = resumedEvaluation;
+    prepareTestEngine = { init: async () => {} };
+    ensurePikafish = () => prepareTestEngine;
+    humanColor = 'b'; computerColor = 'r'; aiLevel = 'advanced'; remainingUndos = 5;
+    currentPlayer = 'r'; gameActive = true; setupOpen = false;
+    moveHistory = [snapshotState()]; currentPlayer = 'b';
+    undoMove();
+`, context);
+assert.equal(scheduled, 1, 'undoing the AI first move as black must schedule its red turn again');
+assert.equal(vm.runInContext('remainingUndos', context), 4);
+vm.runInContext("aiThinking = false; currentPlayer = humanColor;", context);
+handlers.get('pageshow')({ persisted: true });
+assert.equal(evaluations, 1, 'returning to a human turn must restart the cancelled position assessment');
+console.log('page lifecycle cleanup, resumed evaluation and black first-move undo passed');

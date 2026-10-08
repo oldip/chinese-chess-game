@@ -431,6 +431,16 @@ h1 {
     text-align: center;
 }
 
+.position-evaluation {
+    margin-bottom: 12px;
+    color: #7c2d12;
+    text-align: center;
+    font-weight: 700;
+}
+
+.position-evaluation[data-side="red"] { color: #b91c1c; }
+.position-evaluation[data-side="black"] { color: #374151; }
+
 .move-log {
     display: flex;
     flex-direction: column;

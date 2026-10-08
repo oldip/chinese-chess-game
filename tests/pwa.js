@@ -24,6 +24,9 @@ vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, '../pwa.js'
     assert.match(element.textContent, /50%/);
     message(active, { type: 'cache-status', ready: true });
     assert.equal(await window.offlinePreparation, true, 'preparation settles after active generation completes');
-    assert.equal(element.textContent, '已可離線遊玩');
+    assert.equal(element.textContent, '');
+    assert.equal(element.hidden, true, 'completed preparation quietly hides the status');
+    message(active, { type: 'cache-progress', loaded: 1, total: 100 });
+    assert.equal(element.hidden, false, 'a later repair still displays progress');
     console.log('waiting update isolation and automatic preparation completion passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

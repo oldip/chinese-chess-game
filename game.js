@@ -17,14 +17,14 @@ const AI_LEVELS = {
     },
     intermediate: {
         label: '\u4e2d\u7d1a',
-        undoLimit: 3,
+        undoLimit: 10,
         movetime: 1500,
         skill: 10
     },
     advanced: {
         label: '\u9ad8\u7d1a',
-        undoLimit: 0,
-        movetime: 4000,
+        undoLimit: 5,
+        movetime: 2000,
         skill: 20
     },
     custom: {
@@ -2470,6 +2470,50 @@ let aiGeneration = 0;
 let activeSearchGeneration = null;
 let scheduledAiTimer = null;
 let engineGameGeneration = -1;
+let evaluationVersion = 0;
+let evaluationTask = Promise.resolve();
+
+function refreshPositionEvaluation() {
+    if (typeof document === 'undefined') return Promise.resolve();
+    const element = document.getElementById('position-evaluation');
+    if (!element) return Promise.resolve();
+    const version = ++evaluationVersion;
+    const perspective = humanColor;
+    element.dataset.side = perspective === RED_COLOR ? 'red' : 'black';
+    if (setupOpen || !gameActive) {
+        element.textContent = setupOpen ? '局勢評分：—' : '局勢評分：對局結束';
+        return evaluationTask;
+    }
+    const generation = aiGeneration, color = currentPlayer;
+    const key = getBoardKey(board, color), history = cloneMoveSequence(moveSequence);
+    const current = () => version === evaluationVersion && generation === aiGeneration && perspective === humanColor && !setupOpen && gameActive &&
+        key === getBoardKey(board, currentPlayer) && history.join('/') === moveSequence.join('/');
+    const showScore = score => {
+        if (!current() || !score) return;
+        const value = color === perspective ? score.value : -score.value;
+        element.textContent = score.type === 'mate'
+            ? `局勢評分：${colorName(value > 0 ? perspective : otherColor(perspective))}將殺（${Math.abs(value)}）`
+            : `局勢評分：${colorName(perspective)} ${value >= 0 ? '+' : ''}${(value / 100).toFixed(2)}`;
+    };
+    element.textContent = '局勢評分：分析中…';
+    evaluationTask = evaluationTask.catch(() => {}).then(async () => {
+        await window.offlinePreparation;
+        if (!current()) return;
+        const engine = ensurePikafish();
+        await engine.init();
+        if (!current()) return;
+        await engine.configure({ skill: 20, hash: navigator.deviceMemory && navigator.deviceMemory <= 4 ? 8 : 16 });
+        if (!current()) return;
+        await engine.setPosition(boardToFen(initialBoard, RED_COLOR), history.map(key => moveToUci(parseMoveKey(key))));
+        if (!current()) return;
+        const score = await engine.getEvaluation({ movetime: 150, onScore: showScore });
+        if (current()) {
+            if (score) showScore(score);
+            else element.textContent = '局勢評分：暫無評分';
+        }
+    }).catch(() => { if (current()) element.textContent = '局勢評分：暫無評分'; });
+    return evaluationTask;
+}
 
 function updateEngineStatus(data) {
     const element = document.getElementById('engine-status');
@@ -2487,6 +2531,7 @@ function ensurePikafish() {
 }
 
 function cancelPendingAiJob() {
+    evaluationVersion++;
     cloudQueryController?.abort();
     cloudQueryController = null;
     aiGeneration++;
@@ -2496,7 +2541,7 @@ function cancelPendingAiJob() {
     if (pikafishEngine) pikafishEngine.stop().catch(() => {});
 }
 
-// Background speculation is disabled: only the current AI turn consumes CPU.
+// No pondering; short position analysis shares the same Worker as the AI turn.
 function cancelPendingPonderJob() {}
 function startPondering() {}
 
@@ -2531,6 +2576,8 @@ async function requestComputerMove(activeBoard, color, historySequence = moveSeq
     const engine = ensurePikafish();
     const hash = navigator.deviceMemory && navigator.deviceMemory <= 4 ? 8 : 16;
     const skill = (AI_LEVELS[aiLevel] || AI_LEVELS[DEFAULT_AI_LEVEL]).skill;
+    await evaluationTask;
+    if (stale()) return null;
     await window.offlinePreparation;
     if (stale()) return null;
     await engine.init();
@@ -2857,6 +2904,7 @@ function renderMoveLog() {
         return;
     }
 
+    refreshPositionEvaluation();
     const moveLogElement = document.getElementById('move-log');
     if (!moveLogElement) {
         return;
@@ -2940,7 +2988,9 @@ function restoreState(snapshot) {
     updateSideButtons();
     updateStatus();
 
-    if (gameActive && currentPlayer === humanColor) {
+    if (gameActive && isComputerTurn()) {
+        retryComputerMove();
+    } else if (gameActive && currentPlayer === humanColor) {
         startPondering();
     }
 }
@@ -3154,6 +3204,7 @@ function setHumanSide(color) {
     if (setupOpen) {
         updateSideButtons();
         updateStatus();
+        refreshPositionEvaluation();
         return;
     }
 
@@ -3283,7 +3334,10 @@ if (typeof window !== 'undefined') {
         aiThinking = false;
     });
     window.addEventListener('pageshow', event => {
-        if (event.persisted) prepareComputer();
+        if (event.persisted) {
+            refreshPositionEvaluation();
+            prepareComputer();
+        }
     });
     window.openSetupPanel = openSetupPanel;
     window.startConfiguredGame = startConfiguredGame;

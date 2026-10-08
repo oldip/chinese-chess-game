@@ -56,6 +56,14 @@
             toRow: 9 - Number(uci[3]), toCol: uci.charCodeAt(2) - 97 };
     }
 
+    function parseSearchScore(line) {
+        if (!/^info depth /.test(line) || /(?:lowerbound|upperbound)/.test(line)) return null;
+        const multipv = /\bmultipv (\d+)/.exec(line);
+        if (multipv && multipv[1] !== '1') return null;
+        const match = /\bscore (cp|mate) (-?\d+)\b/.exec(line);
+        return match ? { type: match[1], value: Number(match[2]) } : null;
+    }
+
     class PikafishEngine {
         constructor({ WorkerClass = root.Worker, baseUrl = new URL('./', root.location?.href).href,
             onProgress = () => {}, onLine = () => {} } = {}) {
@@ -69,6 +77,7 @@
             this.initializing = null;
             this.ready = false;
             this.searching = false;
+            this.scoreListener = null;
             this.generation = 0;
         }
 
@@ -85,6 +94,8 @@
             if (data.type === 'progress') this.onProgress(data);
             if (data.type === 'line') {
                 this.onLine(data.line);
+                const score = parseSearchScore(data.line);
+                if (score && this.searching) this.scoreListener?.(score);
                 const option = /^option name (.+) type (\w+).*?(?: min (\d+) max (\d+))?$/.exec(data.line);
                 if (option) this.options.set(option[1], { type: option[2], min: Number(option[3]), max: Number(option[4]) });
             }
@@ -103,6 +114,7 @@
             this.worker = null;
             this.ready = false;
             this.searching = false;
+            this.scoreListener = null;
             this.initializing = null;
             for (const waiter of this.waiters) {
                 clearTimeout(waiter.timer);
@@ -181,7 +193,7 @@
             await this.handshake('isready', 'readyok');
         }
 
-        async getBestMove({ movetime = 1000, depth = 0, searchmoves = [] } = {}) {
+        async getBestMove({ movetime = 1000, depth = 0, searchmoves = [], onScore = null } = {}) {
             const generation = this.generation;
             if (!Number.isInteger(movetime) || movetime < 1 || movetime > 30000 ||
                 !Number.isInteger(depth) || depth < 0 || depth > 64) throw new Error('Invalid search limits');
@@ -190,14 +202,21 @@
             if (generation !== this.generation) throw new Error('Pikafish operation cancelled');
             if (this.searching) throw new Error('Search already running');
             this.searching = true;
+            this.scoreListener = onScore;
             const worker = this.worker;
             try {
                 const result = this.waitFor(data => data.type === 'line' && /^bestmove /.test(data.line), movetime + 15000);
                 this.command(`go movetime ${movetime}${depth ? ` depth ${depth}` : ''}${searchmoves.length ? ` searchmoves ${searchmoves.join(' ')}` : ''}`);
                 return uciToMove((await result).line.split(/\s+/)[1]);
             } finally {
-                if (this.worker === worker) this.searching = false;
+                if (this.worker === worker) { this.searching = false; this.scoreListener = null; }
             }
+        }
+
+        async getEvaluation({ movetime = 150, onScore = null } = {}) {
+            let score = null;
+            await this.getBestMove({ movetime, onScore: next => { score = next; onScore?.(next); } });
+            return score;
         }
 
         async stop() {
@@ -217,7 +236,7 @@
         destroy() { this.fail(new Error('Pikafish destroyed/cancelled')); }
     }
 
-    const api = { boardToFen, fenToBoard, moveToUci, uciToMove, PikafishEngine };
+    const api = { boardToFen, fenToBoard, moveToUci, uciToMove, parseSearchScore, PikafishEngine };
     if (typeof module !== 'undefined') module.exports = api;
     else Object.assign(root, api);
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -4,6 +4,7 @@ window.offlinePreparation = new Promise(resolve => { finishOfflinePreparation = 
     const element = document.getElementById('offline-status');
     const status = (text, ready = false) => {
         element.textContent = text;
+        element.hidden = ready;
         element.dataset.ready = String(ready);
     };
     const unavailable = () => {
@@ -29,7 +30,7 @@ window.offlinePreparation = new Promise(resolve => { finishOfflinePreparation = 
         if (data.type === 'cache-status') {
             if (data.ready) {
                 downloading = false;
-                status('已可離線遊玩', true);
+                status('', true);
                 finishOfflinePreparation(true);
                 window.dispatchEvent(new Event('offline-ready'));
             } else if (navigator.onLine && !downloading) {

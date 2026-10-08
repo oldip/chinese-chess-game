@@ -44,7 +44,7 @@ handlers cannot affect a newer game. Do not fall back to the old AI on errors.
 Send the initial FEN plus all UCI moves, and constrain the root with searchmoves
 from the existing playable move filter. Independently validate bestmove before
 performMove. Preserve UI, local mode and existing undo limits. Use preset thinking
-times of 500/1500/4000 ms and custom 0.5–30 seconds. Keep engine details out of the
+times of 500/1500/2000 ms and custom 0.5–30 seconds. Keep engine details out of the
 player UI; prepare automatically on first visit and display simple offline progress.
 
 During the first 20 ply, cloud-opening-book.js first checks the bundled

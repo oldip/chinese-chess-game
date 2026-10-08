@@ -29,6 +29,12 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
         assert.equal(await page.locator('.cell').count(), 90);
         await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready, null, { timeout: 120000 });
         assert.equal(await page.locator('#engine-status').isVisible(), false, 'opponent automatically prepares on first visit');
+        assert.equal(await page.locator('#offline-status').isVisible(), false, 'offline readiness is quiet');
+        await page.click('#level-intermediate');
+        assert.equal(await page.evaluate(() => getUndoLimit()), 10);
+        await page.click('#level-advanced');
+        assert.equal(await page.evaluate(() => getUndoLimit()), 5);
+        assert.equal(await page.evaluate(() => getSearchTimeBudget(board, [])), 2000);
         assert.equal(await page.locator('#custom-time').isVisible(), false);
         assert.equal(await page.locator('#engine-hash, #engine-depth').count(), 0);
         await page.click('#level-custom');
@@ -49,7 +55,7 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
                     openSetupPanel();
                     window.engineSearchCalls = 0;
                     const search = pikafishEngine.getBestMove.bind(pikafishEngine);
-                    pikafishEngine.getBestMove = options => { window.engineSearchCalls++; return search(options); };
+                    pikafishEngine.getBestMove = options => { if (!options.onScore) window.engineSearchCalls++; return search(options); };
                 });
                 await page.click('#level-custom');
                 await page.fill('#custom-time', '30');
@@ -63,6 +69,7 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
                 }
                 await page.waitForFunction(expected => moveSequence.length === expected && !aiThinking, side === 'b' ? 1 : 2, { timeout: 6000 });
                 assert.equal(await page.evaluate(() => window.engineSearchCalls), 0, '30-second openings use bundled official data without searching');
+                await page.waitForFunction(() => { const element = document.querySelector('#position-evaluation'); return element.dataset.side === (humanColor === 'r' ? 'red' : 'black') && element.textContent.startsWith('局勢評分：' + colorName(humanColor) + ' ') && / [+-]\d/.test(element.textContent); });
                 const elapsed = Date.now() - started;
                 assert.ok(elapsed < 6000, 'book must not wait 30 seconds');
                 bookTimings.push({ offline, aiSide: side === 'b' ? 'red' : 'black', elapsed });
@@ -103,9 +110,19 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
         await page.screenshot({ path: `test-results/${channel}-game.png`, fullPage: true });
         await page.click('#undo-button');
         assert.equal(await page.evaluate(() => moveSequence.length), 0);
+        await page.waitForFunction(() => { const element = document.querySelector('#position-evaluation'); return element.dataset.side === (humanColor === 'r' ? 'red' : 'black') && element.textContent.startsWith('局勢評分：' + colorName(humanColor) + ' ') && / [+-]\d/.test(element.textContent); });
         await page.evaluate(() => { setHumanSide('b'); });
         await page.waitForFunction(() => moveSequence.length === 1 && !aiThinking, null, { timeout: 30000 });
         assert.equal(await page.evaluate(() => currentPlayer), 'b');
+        await page.click('#undo-button');
+        await page.waitForFunction(() => moveSequence.length === 1 && !aiThinking, null, { timeout: 30000 });
+        assert.equal(await page.evaluate(() => currentPlayer), 'b', 'black first-move undo must replay AI red turn');
+        await page.waitForFunction(() => /局勢評分：黑方 [+-]\d/.test(document.querySelector('#position-evaluation').textContent));
+        await page.evaluate(() => {
+            window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }));
+            window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+        });
+        await page.waitForFunction(() => /局勢評分：黑方 [+-]\d/.test(document.querySelector('#position-evaluation').textContent));
         await page.evaluate(() => { resetGame(); openSetupPanel(); setHumanSide('r'); startConfiguredGame(); });
         await page.click('[data-row="6"][data-col="0"]');
         await page.click('[data-row="5"][data-col="0"]');
@@ -168,7 +185,7 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
         assert.deepEqual(errors, []);
         assert.deepEqual(external, []);
         fs.writeFileSync(`test-results/${channel}.json`, JSON.stringify({ url: base, channel, version: browser.version(), result, bookTimings, cloudRequests, errors, external, protectionRequests, offline: true }, null, 2));
-        console.log(`${channel} ${browser.version()}: bundled never-queried offline 30-second openings for both sides, automatic preparation, custom time, 8 real engine plies, UI play/undo/sides/cancel/responsiveness/bfcache, subpath + offline replay/eviction/automatic recovery passed`);
+        console.log(`${channel} ${browser.version()}: bundled never-queried offline 30-second openings for both sides, quiet preparation, undo limits, player-perspective position scores, custom time, 8 real engine plies, UI play/undo/sides/cancel/responsiveness/bfcache, subpath + offline replay/eviction/automatic recovery passed`);
         } finally { await browser.close(); }
     }
 })().catch(error => { console.error(error); process.exit(1); });

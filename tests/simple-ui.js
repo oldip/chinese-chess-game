@@ -4,7 +4,7 @@ const game = require('../game.js');
 const html = fs.readFileSync(require('node:path').join(__dirname, '../index.html'), 'utf8');
 assert.ok(!/engine-hash|engine-depth|本機 Pikafish|Skill 0|修復快取|重試 AI/.test(html), 'player UI must not expose engine internals/cache maintenance');
 assert.ok(html.includes('level-custom'), 'custom thinking time replaces depth control');
-for (const [level, time] of [['beginner', 500], ['intermediate', 1500], ['advanced', 4000]]) {
+for (const [level, time] of [['beginner', 500], ['intermediate', 1500], ['advanced', 2000]]) {
     game.setAiLevel(level);
     assert.equal(game.getSearchTimeBudget(game.initialBoard, []), time);
 }
