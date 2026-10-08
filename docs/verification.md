@@ -6,6 +6,7 @@
 - `tests/review-browser.cjs` 在 Windows Chrome／Edge 完成首次快取後斷網重載，使用真實 WASM 分析全部棋譜，逐步點選、停止／續跑、紅黑玩家視角、棋盤只讀與重新開始取消舊結果均通過。
 - 四步開局測例以合法走棋加結束旗標隔離復盤 UI；另外注入合法「兵五進一」將死残局，用真實 `finalizeMove` 結束對局，再完成本機將殺復盤，沒有以結束旗標替代該項驗證。
 - `4c0db81` 的 GitHub Pages 公開版本 `pikafish-a453211f2ca5f819` 與提交一致；正式 HTTPS Chrome／Edge 完整復盤及原有 browser suite 均通過。
+- 最後的將殺說明修正 `0b86f13` 公開版本 `pikafish-d7f3f3fa97b0f86e` 與提交一致；16 組測試及正式 HTTPS Chrome／Edge 離線復盤再次通過。將殺不換算虛構分數損失，延後已存在的將殺不視為新錯招。
 - 原有 `tests/browser.cjs` Chrome／Edge 完整对弈、8 ply、悔棋／取消、離線快取遺失／恢復仍通過。復盤新腳本 pageerror／非預期 external 為空。
 - 所有復盤執行資源已納入 27 個版本化快取項目；没有遠端分析或額外模型下載。
 - 未驗證與 Xiangqi.com 評級一致、專家棋評準確度、整盤長棋譜性能或手機真機。妙手／漏著為保守啟發式，短搜尋可能漏掉深層戰術；復盤只保留在目前頁面的本局。
