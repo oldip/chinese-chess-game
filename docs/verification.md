@@ -14,7 +14,7 @@
 | UI 可回應 | AI 思考期間頁面 10ms interval，在 150ms 內仍有至少 5 次執行；通過，不是 FPS/性能基準 |
 | 頁面生命週期 | 模擬 persisted pagehide/pageshow，取消 Worker 後恢復 AI 回合；通過。未單獨證明瀏覽器實際採用了 BFCache |
 | Pages 形式子路徑 | `/chinese-chess-game/` 本機 HTTPS 下 Worker、WASM、NNUE、icons、manifest、SW 全部可取得 |
-| 公開 GitHub Pages | `d3ad1b7` 發布狀態 built，公開 precache 版本與提交一致；https://oldip.github.io/chinese-chess-game/ 的 Chrome／Edge 完整 browser suite 通過，含自動準備、對弈、離線重開及自動補回 NNUE |
+| 公開 GitHub Pages | `e50b854` 發布狀態 built，公開 precache 版本 `pikafish-afd50655a5c24289` 與提交一致；https://oldip.github.io/chinese-chess-game/ 的 Chrome／Edge 完整 browser suite 通過，含官方雲庫紅黑開局、自動準備、對弈、離線重開及自動補回 NNUE |
 | 完全離線 | Playwright `context.setOffline(true)` 後重新載入頁面，重新建立 Worker／載入 NNUE並完成玩家/AI 回合；Chrome/Edge 通過 |
 | 首次準備／簡潔設定 | 不點任何按鈕即可完成全資源快取及真實引擎初始化；準備完成後隱藏載入提示；初／中／高級與自訂秒數控制通過 |
 | 快取遺失／修復 | 離線刪除 NNUE cache → reload 撤銷 ready → 初始化失敗 → 恢復網絡自動補回 → 再斷網 reload 並完成自訂時間對弈；兩瀏覽器通過 |
@@ -38,6 +38,8 @@ Chrome／Edge 在這個實際環境下均完成公開站離線對弈及恢復測
 Chrome／Edge 均使用真正的 chessdb.cn 回應，紅、黑 AI 在自訂 30 秒下分別測試命中走法，
 並斷網重新載入後使用持久快取走出相同局面。引擎 getBestMove 呼叫計數為 0，證明沒有等待 30 秒搜尋。
 本機 HTTPS 實測連線開局約 0.87–1.41 秒，離線約 0.33–0.36 秒（含走棋動畫；不是性能保證）。
+公開 GitHub Pages 的 Chrome／Edge 同樣通過完整測試：聯網命中約 0.86–1.43 秒，
+斷網重新載入後命中約 0.32–0.35 秒；兩者 pageerror／非預期 external 清單均為空。
 其餘完整瀏覽器回歸強制雲庫未命中，驗證真正本機 WASM 搜尋、多回合與離線回退。
 雲庫網絡失敗／逾時、錯誤座標、規則排除走法、取消舊查詢均有自動測試。
 
