@@ -16,6 +16,15 @@ const localCertificate = process.env.TEST_LOCAL_CERT === '1' && new URL(base).ho
         context.on('request', request => { if (new URL(request.url()).origin !== new URL(base).origin && /^https?:/.test(request.url())) external.push(request.url()); });
         await page.goto(base, { waitUntil: 'domcontentloaded' });
         assert.equal(await page.locator('.cell').count(), 90);
+        await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready, null, { timeout: 120000 });
+        assert.equal(await page.locator('#engine-status').isVisible(), false, 'opponent automatically prepares on first visit');
+        assert.equal(await page.locator('#custom-time').isVisible(), false);
+        assert.equal(await page.locator('#engine-hash, #engine-depth').count(), 0);
+        await page.click('#level-custom');
+        await page.fill('#custom-time', '1');
+        await page.locator('#custom-time').dispatchEvent('change');
+        assert.equal(await page.evaluate(() => getSearchTimeBudget(board, [])), 1000);
+        await page.screenshot({ path: `test-results/${channel}-settings.png`, fullPage: true });
         const result = await page.evaluate(async () => {
             const lines = [];
             const engine = new PikafishEngine({ onLine: line => lines.push(line) });
@@ -73,7 +82,7 @@ const localCertificate = process.env.TEST_LOCAL_CERT === '1' && new URL(base).ho
         await page.screenshot({ path: `test-results/${channel}.png`, fullPage: true });
         await context.setOffline(true);
         await page.reload({ waitUntil: 'domcontentloaded' });
-        await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true');
+        await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready);
         await page.click('#level-beginner');
         await page.click('#start-game-button');
         await page.click('[data-row="6"][data-col="2"]');
@@ -88,17 +97,29 @@ const localCertificate = process.env.TEST_LOCAL_CERT === '1' && new URL(base).ho
             await (await caches.open(name)).delete(new URL('engine/pikafish.data', location.href));
         });
         await page.reload({ waitUntil: 'domcontentloaded' });
-        await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'false' && /缺失/.test(document.querySelector('#offline-status').textContent));
+        await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'false' && /尚未備妥/.test(document.querySelector('#offline-status').textContent));
         const missing = await page.evaluate(async () => {
             const engine = new PikafishEngine();
             try { await engine.init(); return false; } catch { return true; } finally { engine.destroy(); }
         });
         assert.equal(missing, true, 'missing offline NNUE cannot silently use another AI');
         await context.setOffline(false);
-        await page.click('button:has-text("修復快取")');
-        await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true', null, { timeout: 120000 });
+        await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready, null, { timeout: 120000 });
+        await context.setOffline(true);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready);
+        await page.click('#level-custom');
+        await page.fill('#custom-time', '0.5');
+        await page.locator('#custom-time').dispatchEvent('change');
+        await page.click('#start-game-button');
+        await page.click('[data-row="6"][data-col="0"]');
+        await page.click('[data-row="5"][data-col="0"]');
+        await page.waitForFunction(() => moveSequence.length === 2 && !aiThinking, null, { timeout: 30000 });
+        assert.equal(await page.locator('#custom-time').isDisabled(), true);
+        assert.deepEqual(errors, []);
+        assert.deepEqual(external, []);
         fs.writeFileSync(`test-results/${channel}.json`, JSON.stringify({ channel, version: browser.version(), result, errors, external, offline: true }, null, 2));
-        console.log(`${channel} ${browser.version()}: 8 real engine plies, UI play/undo/sides/cancel/responsiveness/bfcache, subpath + offline replay/eviction/repair passed`);
+        console.log(`${channel} ${browser.version()}: automatic preparation, custom time, 8 real engine plies, UI play/undo/sides/cancel/responsiveness/bfcache, subpath + offline replay/eviction/automatic recovery passed`);
         } finally { await browser.close(); }
     }
 })().catch(error => { console.error(error); process.exit(1); });

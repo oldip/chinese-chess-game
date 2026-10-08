@@ -12,25 +12,28 @@ const AI_LEVELS = {
     beginner: {
         label: '\u521d\u7d1a',
         undoLimit: Infinity,
-        opening: 1200,
-        middlegame: 1350,
-        endgame: 1500
+        movetime: 500,
+        skill: 0
     },
     intermediate: {
         label: '\u4e2d\u7d1a',
         undoLimit: 3,
-        opening: 3600,
-        middlegame: 4300,
-        endgame: 5000
+        movetime: 1500,
+        skill: 10
     },
     advanced: {
         label: '\u9ad8\u7d1a',
         undoLimit: 0,
-        opening: 6500,
-        middlegame: 8000,
-        endgame: 10000
+        movetime: 4000,
+        skill: 20
+    },
+    custom: {
+        label: '自訂',
+        undoLimit: Infinity,
+        skill: 20
     }
 };
+let customThinkTimeMs = 3000;
 const DEFAULT_AI_LEVEL = 'intermediate';
 const RED_NUMERALS = ['', '\u4e00', '\u4e8c', '\u4e09', '\u56db', '\u4e94', '\u516d', '\u4e03', '\u516b', '\u4e5d'];
 const BLACK_NUMERALS = ['', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -470,7 +473,7 @@ function getAiLevelTimeRange(level = aiLevel) {
         return '\u672a\u9078\u64c7';
     }
 
-    return `${config.opening}-${config.endgame}ms`;
+    return `每步最多 ${(level === 'custom' ? customThinkTimeMs : config.movetime) / 1000} 秒`;
 }
 
 function getUndoLimit(level = aiLevel) {
@@ -582,6 +585,13 @@ function updateSetupPanel() {
     }
     if (difficultyGroup) {
         difficultyGroup.classList.toggle('hidden', !hasComputerOpponent());
+    }
+    const customTimeGroup = document.getElementById('custom-time-group');
+    if (customTimeGroup) customTimeGroup.classList.toggle('hidden', aiLevel !== 'custom');
+    const customTime = document.getElementById('custom-time');
+    if (customTime) {
+        customTime.value = customThinkTimeMs / 1000;
+        customTime.disabled = isDifficultyLocked();
     }
     if (startButton) {
         const ready = hasComputerOpponent() ? Boolean(AI_LEVELS[aiLevel]) : true;
@@ -1232,17 +1242,7 @@ function ensureEngineCore() {
 
 function getSearchTimeBudget(activeBoard, legalMoves) {
     const levelConfig = AI_LEVELS[aiLevel] || AI_LEVELS[DEFAULT_AI_LEVEL];
-    const pieceCount = countPieces(activeBoard);
-
-    if (pieceCount >= 28 || legalMoves.length >= 34) {
-        return levelConfig.opening;
-    }
-
-    if (pieceCount >= 18) {
-        return levelConfig.middlegame;
-    }
-
-    return levelConfig.endgame;
+    return aiLevel === 'custom' ? customThinkTimeMs : levelConfig.movetime;
 }
 
 function getPonderBudgets(activeBoard, legalMoves) {
@@ -2458,14 +2458,14 @@ let pikafishEngine = null;
 let aiGeneration = 0;
 let activeSearchGeneration = null;
 let scheduledAiTimer = null;
-let engineStatus = 'Pikafish 尚未載入';
 let engineGameGeneration = -1;
 
 function updateEngineStatus(data) {
-    engineStatus = data.stage === 'ready' ? 'Pikafish 已就緒 · 本機單線程'
-        : `載入 ${data.stage}：${Math.round(data.loaded / data.total * 100)}%`;
     const element = document.getElementById('engine-status');
-    if (element) element.textContent = engineStatus;
+    if (element) {
+        element.hidden = data.stage === 'ready';
+        element.textContent = '正在準備電腦對手…';
+    }
 }
 
 function ensurePikafish() {
@@ -2501,9 +2501,10 @@ async function requestComputerMove(activeBoard, color, historySequence = moveSeq
     if (!legalMoves.length) return null;
     const engine = ensurePikafish();
     const stale = () => generation !== aiGeneration;
-    const hash = Number(document.getElementById('engine-hash').value);
-    const depth = Number(document.getElementById('engine-depth').value);
-    const skill = { beginner: 0, intermediate: 10, advanced: 20 }[aiLevel] ?? 10;
+    const hash = navigator.deviceMemory && navigator.deviceMemory <= 4 ? 8 : 16;
+    const skill = (AI_LEVELS[aiLevel] || AI_LEVELS[DEFAULT_AI_LEVEL]).skill;
+    await window.offlinePreparation;
+    if (stale()) return null;
     await engine.init();
     if (stale()) return null;
     if (engineGameGeneration !== generation) {
@@ -2516,7 +2517,7 @@ async function requestComputerMove(activeBoard, color, historySequence = moveSeq
     // Full history preserves repetition and reversible-move state inside Pikafish.
     await engine.setPosition(boardToFen(initialBoard, RED_COLOR), historySequence.map(key => moveToUci(parseMoveKey(key))));
     if (stale()) return null;
-    const move = await engine.getBestMove({ movetime: getSearchTimeBudget(activeBoard, legalMoves), depth,
+    const move = await engine.getBestMove({ movetime: getSearchTimeBudget(activeBoard, legalMoves),
         searchmoves: legalMoves.map(moveToUci) });
     if (stale()) return null;
     if (!move || !legalMoves.some(candidate => sameMove(candidate, move)))
@@ -3053,9 +3054,10 @@ async function computerMove() {
         performMove(chosenMove);
     } catch (error) {
         if (generation !== aiGeneration) return;
-        statusMessage = `Pikafish 載入或搜尋失敗：${error.message}。請連線後重試。`;
+        console.error('Computer opponent failed:', error);
+        statusMessage = '電腦對手暫時無法使用，連線後會自動重試。';
         const element = document.getElementById('engine-status');
-        if (element) element.textContent = statusMessage;
+        if (element) { element.hidden = false; element.textContent = statusMessage; }
     } finally {
         if (generation === aiGeneration) {
             activeSearchGeneration = null;
@@ -3175,6 +3177,13 @@ function setAiLevel(level) {
     }
 }
 
+function setCustomThinkTime(seconds) {
+    const value = Number(seconds);
+    if (isDifficultyLocked() || !Number.isFinite(value) || value < 0.5 || value > 30) return;
+    customThinkTimeMs = Math.round(value * 1000);
+    updateStatus();
+}
+
 function resetGame() {
     if (hasComputerOpponent() && !AI_LEVELS[aiLevel]) {
         setupOpen = true;
@@ -3223,6 +3232,22 @@ function resetGame() {
 }
 
 if (typeof window !== 'undefined') {
+    const prepareComputer = async () => {
+        await window.offlinePreparation;
+        const generation = aiGeneration;
+        try {
+            await ensurePikafish().init();
+            retryComputerMove();
+        } catch (error) {
+            if (generation !== aiGeneration) return;
+            console.warn('Computer preparation:', error);
+            const element = document.getElementById('engine-status');
+            if (element) { element.hidden = false; element.textContent = '電腦對手準備未完成，連線後會自動重試。'; }
+        }
+    };
+    window.addEventListener('load', prepareComputer);
+    window.addEventListener('offline-ready', prepareComputer);
+    window.addEventListener('online', prepareComputer);
     window.retryComputerMove = retryComputerMove;
     window.addEventListener('pagehide', () => {
         cancelPendingAiJob();
@@ -3230,7 +3255,7 @@ if (typeof window !== 'undefined') {
         aiThinking = false;
     });
     window.addEventListener('pageshow', event => {
-        if (event.persisted && gameActive && isComputerTurn()) retryComputerMove();
+        if (event.persisted) prepareComputer();
     });
     window.openSetupPanel = openSetupPanel;
     window.startConfiguredGame = startConfiguredGame;
@@ -3239,6 +3264,7 @@ if (typeof window !== 'undefined') {
     window.setGameMode = setGameMode;
     window.setHumanSide = setHumanSide;
     window.setAiLevel = setAiLevel;
+    window.setCustomThinkTime = setCustomThinkTime;
     createBoard();
     renderMoveLog();
     updateSideButtons();
@@ -3288,6 +3314,7 @@ if (typeof module !== 'undefined') {
         startConfiguredGame,
         setGameMode,
         setAiLevel,
+        setCustomThinkTime,
         setHumanSide,
         shouldLockDifficulty,
         canUndoMove,

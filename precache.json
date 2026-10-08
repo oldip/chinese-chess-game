@@ -1,20 +1,20 @@
 {
-  "version": "pikafish-2c91dfde88fc3b8d",
+  "version": "pikafish-d120dee3f7ad5d28",
   "files": [
     {
       "path": "index.html",
-      "bytes": 5950,
-      "sha256": "ecf67cf701fb3c0ef66380e79df660d365d755ea40bea863b6959854576c83ec"
+      "bytes": 5607,
+      "sha256": "bcb301e206974a372a72d5d0501a7e920b6e20aaf7fed3650a534755dc9d1182"
     },
     {
       "path": "styles.css",
-      "bytes": 11248,
-      "sha256": "f0c7da26008d30db051d2a98ed1ea80caf5cd72a8d32a6295d0fb1709de570df"
+      "bytes": 11328,
+      "sha256": "4ab2e60ceffe31e0c0c2975afbd41cf9818e543a7c9538c9db935a6d7e527b30"
     },
     {
       "path": "game.js",
-      "bytes": 112695,
-      "sha256": "61694e8b820d4b3b5af3525ea4ef0b139fda17e71ffb728562a6ec56a4830640"
+      "bytes": 113928,
+      "sha256": "1b618ecc9f757e2e80c0b7cbfff10f5f2bffb92be942094994f4a5a61f2fe9c6"
     },
     {
       "path": "pikafish-adapter.js",
@@ -28,8 +28,8 @@
     },
     {
       "path": "pwa.js",
-      "bytes": 2393,
-      "sha256": "3de6c4f1a46a9514116dd2cd551c009f9f1be85bf915bdd865ec9b707ee590d7"
+      "bytes": 3034,
+      "sha256": "8c73b76914a8dfef5c0a9dbcece314029e1793ae32a52faf99254e241b05f57c"
     },
     {
       "path": "manifest.webmanifest",

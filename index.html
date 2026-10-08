@@ -34,31 +34,31 @@
                 <div class="difficulty-picker setup-difficulty-picker" role="group" aria-label="Choose difficulty">
                     <button id="level-beginner" type="button" class="difficulty-button" onclick="setAiLevel('beginner')">
                         <span class="difficulty-name">&#x521d;&#32026;</span>
-                        <span class="difficulty-time">1200-1500ms</span>
+                        <span class="difficulty-time">輕鬆練習</span>
                     </button>
                     <button id="level-intermediate" type="button" class="difficulty-button" onclick="setAiLevel('intermediate')">
                         <span class="difficulty-name">&#x4e2d;&#32026;</span>
-                        <span class="difficulty-time">3600-5000ms</span>
+                        <span class="difficulty-time">認真對弈</span>
                     </button>
                     <button id="level-advanced" type="button" class="difficulty-button" onclick="setAiLevel('advanced')">
                         <span class="difficulty-name">&#x9ad8;&#32026;</span>
-                        <span class="difficulty-time">6500-10000ms</span>
+                        <span class="difficulty-time">全力挑戰</span>
+                    </button>
+                    <button id="level-custom" type="button" class="difficulty-button" onclick="setAiLevel('custom')">
+                        <span class="difficulty-name">自訂</span>
+                        <span class="difficulty-time">設定思考時間</span>
                     </button>
                 </div>
-            </div>
-            <div class="setup-group engine-controls">
-                <label>Hash <select id="engine-hash"><option value="8">8 MB</option><option value="16" selected>16 MB</option><option value="32">32 MB</option><option value="64">64 MB</option></select></label>
-                <label>深度上限 <select id="engine-depth"><option value="0">按思考時間</option><option value="4">4</option><option value="8">8</option><option value="12">12</option><option value="20">20</option></select></label>
-                <p class="setup-copy">本機 Pikafish · 單線程。初／中／高級使用 Skill 0／10／20；並非經校準的棋力等級。</p>
+                <label id="custom-time-group" class="custom-time hidden">每步最多思考
+                    <input id="custom-time" type="number" min="0.5" max="30" step="0.5" value="3" onchange="setCustomThinkTime(this.value)"> 秒
+                </label>
             </div>
             <div id="setup-status" class="setup-status"></div>
             <button id="start-game-button" type="button" class="start-game-button" onclick="startConfiguredGame()">&#38283;&#22987;&#23565;&#23616;</button>
         </section>
         <div class="engine-panel" aria-live="polite">
-            <span id="engine-status">Pikafish 尚未載入 · 首次約下載 19 MB</span>
-            <button type="button" class="secondary-button" onclick="retryComputerMove()">重試 AI</button>
-            <div id="offline-status" data-ready="false">離線資源尚未快取完成</div>
-            <button type="button" class="secondary-button" onclick="repairOfflineCache()">修復快取</button>
+            <span id="engine-status">正在準備電腦對手…</span>
+            <div id="offline-status" data-ready="false">首次開啟正在下載遊戲資料…</div>
         </div>
         <div id="game-layout" class="game-layout">
             <section class="board-column">

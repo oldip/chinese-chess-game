@@ -169,7 +169,7 @@ h1 {
 .setup-difficulty-picker {
     display: grid;
     width: 100%;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
     padding: 0;
     background: transparent;
@@ -565,12 +565,16 @@ button:hover {
     text-align: center;
 }
 
-.engine-panel button {
-    display: inline-block;
-    padding: 5px 12px;
-    margin: 4px;
+.custom-time {
+    display: block;
+    margin-top: 14px;
 }
+.custom-time.hidden { display: none; }
 
-.engine-controls select {
-    margin: 4px 12px 4px 4px;
+.custom-time input {
+    width: 70px;
+    padding: 6px;
+    border: 1px solid #c9bda8;
+    border-radius: 6px;
+    font: inherit;
 }

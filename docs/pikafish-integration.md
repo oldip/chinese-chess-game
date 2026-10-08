@@ -41,8 +41,9 @@ handlers cannot affect a newer game. Do not fall back to the old AI on errors.
 
 Send the initial FEN plus all UCI moves, and constrain the root with searchmoves
 from the existing playable move filter. Independently validate bestmove before
-performMove. Preserve UI, local mode, undo limits and difficulty timings. Add only
-engine progress/error/retry, Hash/depth controls and offline status.
+performMove. Preserve UI, local mode and existing undo limits. Use preset thinking
+times of 500/1500/4000 ms and custom 0.5–30 seconds. Keep engine details out of the
+player UI; prepare automatically on first visit and display simple offline progress.
 
 ## Implementation and acceptance sequence
 
@@ -50,11 +51,11 @@ engine progress/error/retry, Hash/depth controls and offline status.
    FEN + UCI adapter/worker. Verify handshake, NNUE and real legal bestmove.
 2. Connect game flow and generation cancellation. Verify sides, multi-turn play,
    reset/setup/mode cancellation, timers, rules and difficulty regression tests.
-3. Add manifest and versioned atomic Service Worker cache with progress and explicit
+3. Add manifest and versioned Service Worker cache with progress and explicit
    cache-complete acknowledgement. Verify subpath, offline restart/search, missing
    resource failure and same-origin-only requests in real browser automation.
-4. Document startup, build/deployment, hashes, licensing and reproducible-source
-   instructions. Run unit tests, browser tests and hash verification. Record exact
+4. Publish ready static files from the branch root. Put hashes, licensing and source
+   maintenance in dedicated documentation. Run unit tests, browser tests and hash verification. Record exact
    tested environments; do not claim Android or stock Firefox without running them.
 
 Existing handcrafted AI tests/source remain for historical regression reference;

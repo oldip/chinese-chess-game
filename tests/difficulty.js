@@ -22,8 +22,8 @@ const endgameBoard = createEndgameBoard();
 const endgameLegal = game.getAllLegalMoves(endgameBoard, game.RED_COLOR);
 
 game.setAiLevel('beginner');
-assert.strictEqual(game.getSearchTimeBudget(openingBoard, openingLegal), 1200);
-assert.strictEqual(game.getSearchTimeBudget(endgameBoard, endgameLegal), 1500);
+assert.strictEqual(game.getSearchTimeBudget(openingBoard, openingLegal), 500);
+assert.strictEqual(game.getSearchTimeBudget(endgameBoard, endgameLegal), 500);
 assert.strictEqual(game.getUndoLimit(), Infinity);
 assert.deepStrictEqual(game.getPonderBudgets(openingBoard, openingLegal), {
     candidateCount: 1,
@@ -32,38 +32,38 @@ assert.deepStrictEqual(game.getPonderBudgets(openingBoard, openingLegal), {
 });
 assert.deepStrictEqual(game.getPonderBudgets(endgameBoard, endgameLegal), {
     candidateCount: 1,
-    predictTimeBudgetMs: 420,
-    replyTimeBudgetMs: 750
+    predictTimeBudgetMs: 350,
+    replyTimeBudgetMs: 700
 });
 
 game.setAiLevel('intermediate');
-assert.strictEqual(game.getSearchTimeBudget(openingBoard, openingLegal), 3600);
-assert.strictEqual(game.getSearchTimeBudget(endgameBoard, endgameLegal), 5000);
+assert.strictEqual(game.getSearchTimeBudget(openingBoard, openingLegal), 1500);
+assert.strictEqual(game.getSearchTimeBudget(endgameBoard, endgameLegal), 1500);
 assert.strictEqual(game.getUndoLimit(), 3);
 assert.deepStrictEqual(game.getPonderBudgets(openingBoard, openingLegal), {
     candidateCount: 2,
-    predictTimeBudgetMs: 1224,
-    replyTimeBudgetMs: 2232
+    predictTimeBudgetMs: 700,
+    replyTimeBudgetMs: 1300
 });
 assert.deepStrictEqual(game.getPonderBudgets(endgameBoard, endgameLegal), {
     candidateCount: 2,
-    predictTimeBudgetMs: 1700,
-    replyTimeBudgetMs: 3100
+    predictTimeBudgetMs: 700,
+    replyTimeBudgetMs: 1300
 });
 
 game.setAiLevel('advanced');
-assert.strictEqual(game.getSearchTimeBudget(openingBoard, openingLegal), 6500);
-assert.strictEqual(game.getSearchTimeBudget(endgameBoard, endgameLegal), 10000);
+assert.strictEqual(game.getSearchTimeBudget(openingBoard, openingLegal), 4000);
+assert.strictEqual(game.getSearchTimeBudget(endgameBoard, endgameLegal), 4000);
 assert.strictEqual(game.getUndoLimit(), 0);
 assert.deepStrictEqual(game.getPonderBudgets(openingBoard, openingLegal), {
     candidateCount: 3,
-    predictTimeBudgetMs: 2600,
-    replyTimeBudgetMs: 5330
+    predictTimeBudgetMs: 1600,
+    replyTimeBudgetMs: 3280
 });
 assert.deepStrictEqual(game.getPonderBudgets(endgameBoard, endgameLegal), {
     candidateCount: 3,
-    predictTimeBudgetMs: 4000,
-    replyTimeBudgetMs: 8200
+    predictTimeBudgetMs: 1600,
+    replyTimeBudgetMs: 3280
 });
 
 assert.strictEqual(game.PIECE_LABELS.rR, '俥');
