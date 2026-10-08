@@ -1,5 +1,6 @@
-/* Adapter glue only. The unmodified GPL Pikafish WASM and loader live in engine/. */
+/* Adapter glue only. The GPL Pikafish WASM and loader live in engine/. */
 let engine = null;
+let runtime = null;
 let initializing = false;
 
 async function verifiedResource(file, metadata) {
@@ -24,24 +25,36 @@ async function verifiedResource(file, metadata) {
 
 self.onmessage = async ({ data }) => {
     try {
+        if (data.type === 'destroy') {
+            (engine || runtime)?.PThread?.terminateAllThreads();
+            self.postMessage({ type: 'destroyed' });
+            self.close();
+            return;
+        }
         if (data.type === 'init' && !initializing) {
             initializing = true;
             const response = await fetch(new URL('engine/provenance.json', self.location.href));
             if (!response.ok) throw new Error('Engine provenance is missing');
             const { files } = await response.json();
             const net = await verifiedResource('pikafish.data', files['pikafish.data']);
-            const wasm = await verifiedResource('pikafish.wasm', files['pikafish.wasm']);
-            const js = await verifiedResource('pikafish.js', files['pikafish.js']);
+            const multi = data.mode === 'multi';
+            if (multi && (!self.crossOriginIsolated || typeof SharedArrayBuffer !== 'function')) throw new Error('Shared memory is unavailable');
+            const prefix = multi ? 'pikafish-multi' : 'pikafish';
+            const wasm = await verifiedResource(`${prefix}.wasm`, files[`${prefix}.wasm`]);
+            const js = await verifiedResource(`${prefix}.js`, files[`${prefix}.js`]);
             const script = URL.createObjectURL(new Blob([js], { type: 'text/javascript' }));
             try { importScripts(script); } finally { URL.revokeObjectURL(script); }
-            engine = await Pikafish({
+            runtime = {
                 wasmBinary: wasm,
+                pthreadPoolSize: Math.max(1, Math.min(4, data.threads || 1)) + 1,
+                mainScriptUrlOrBlob: new URL(`engine/${prefix}.js`, self.location.href).href,
                 getPreloadedPackage: () => net,
-                locateFile: file => new URL(`engine/${file}`, self.location.href).href,
+                locateFile: file => new URL(`engine/${multi && file === 'pikafish.worker.js' ? 'pikafish-multi.worker.js' : file}`, self.location.href).href,
                 read_stdout: line => self.postMessage({ type: 'line', line }),
                 printErr: message => self.postMessage({ type: 'line', line: `info string ${message}` }),
                 onAbort: message => self.postMessage({ type: 'error', message: String(message) })
-            });
+            };
+            engine = await Pikafish(runtime);
             self.postMessage({ type: 'ready' });
         } else if (data.type === 'command' && engine) {
             // send_command accepts one line per invocation.

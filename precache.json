@@ -1,5 +1,5 @@
 {
-  "version": "pikafish-d7f3f3fa97b0f86e",
+  "version": "pikafish-07df6c7c464aae52",
   "files": [
     {
       "path": "index.html",
@@ -13,8 +13,8 @@
     },
     {
       "path": "game.js",
-      "bytes": 126812,
-      "sha256": "9027df907b8a589233381693315e7e87f5f8d91f171c2f90c5e56ff449bcfe79"
+      "bytes": 126800,
+      "sha256": "7d86b9462a474362f0eea65e83c629a1c5fec1885d0437ddc5f1514afbaf779d"
     },
     {
       "path": "game-review.js",
@@ -28,18 +28,18 @@
     },
     {
       "path": "pikafish-adapter.js",
-      "bytes": 12499,
-      "sha256": "fff78657f11dcfd8a08f43535e4856a646eefc84d8e71ffa828b74e9d635d4f1"
+      "bytes": 15913,
+      "sha256": "76cb7ee514f88a0789246c26f589c1d7628842e05906edcae147b70fd690b91d"
     },
     {
       "path": "pikafish-worker.js",
-      "bytes": 2890,
-      "sha256": "9dcbe0bfeab34290be9effc6b7dd6b60274870c42c65735b71c209ce5a53e86a"
+      "bytes": 3654,
+      "sha256": "b2edf55cfc83c553ff708296d4e835a07e035ab456339f6d6768320194ec2e36"
     },
     {
       "path": "pwa.js",
-      "bytes": 3048,
-      "sha256": "cfe2c388ba853b4e40192abb06b63a0d1b026cd7463180b9f0f5b67d6440f2cb"
+      "bytes": 4049,
+      "sha256": "dab4493c2f77a2131c9e985ff9bc6dafda01c5f3ddaf766c3f2700bb8d7d2669"
     },
     {
       "path": "manifest.webmanifest",
@@ -97,6 +97,11 @@
       "sha256": "0b383d5a63da644f628d99c33976ea6487ed89aaa59f0b3257992deac1171e6b"
     },
     {
+      "path": "engine/MULTI-NOTICE.md",
+      "bytes": 245,
+      "sha256": "3068e329d8c67380be1c73d0552f3777c215d218b5a2f9669bf656bae9e7b432"
+    },
+    {
       "path": "engine/NNUE-License.md",
       "bytes": 1097,
       "sha256": "331463a6894a077d7de9610541db27fd1365c870d0362fe8135b96706f84eda0"
@@ -105,6 +110,21 @@
       "path": "engine/official-release-README.md",
       "bytes": 16527,
       "sha256": "36776e1d86cb1a3d96a515c1ae7d13db7ffa0d6390ee4349b8ec510cc4439091"
+    },
+    {
+      "path": "engine/pikafish-multi.js",
+      "bytes": 130561,
+      "sha256": "48acf394fd2d3a98ba6d64a444e38f95b9166dbef73c8c4e19cdc3303bbdc751"
+    },
+    {
+      "path": "engine/pikafish-multi.wasm",
+      "bytes": 609179,
+      "sha256": "bcacb7314dc3109c9a156e916ecb881fe970e4b6d0f966ad9cfd74a86f6185e4"
+    },
+    {
+      "path": "engine/pikafish-multi.worker.js",
+      "bytes": 5769,
+      "sha256": "ebdc61f53050d6d1c49dce3e9ccbb542033e7e9dc2b804a72f1f71e508e504ca"
     },
     {
       "path": "engine/pikafish-source.zip",
@@ -128,13 +148,13 @@
     },
     {
       "path": "engine/provenance.json",
-      "bytes": 2010,
-      "sha256": "e74b44914ac52362006df22b746468f1e3014f3131bedef6de129b80e4c90251"
+      "bytes": 3051,
+      "sha256": "6fd6a05083e730c859f406213dd8d76559113d0388117cec956c2d2fc797546e"
     },
     {
       "path": "engine/SHA256SUMS",
-      "bytes": 476,
-      "sha256": "8c863c187dcfec046e9b5a9a83ec729f3b0d97830e83f0827925071f74ee723f"
+      "bytes": 819,
+      "sha256": "ac95a45afdcc0d1b7fd9c67e8aff3e7b7161bd59c335127e633f4d2a9915298e"
     }
   ]
 }

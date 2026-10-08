@@ -64,6 +64,14 @@
         return match ? { type: match[1], value: Number(match[2]) } : null;
     }
 
+    function selectThreadCount(navigator = {}) {
+        const cores = Number.isInteger(navigator.hardwareConcurrency) && navigator.hardwareConcurrency > 0
+            ? navigator.hardwareConcurrency : 1;
+        const memory = navigator.deviceMemory;
+        const memoryLimit = memory && memory <= 2 ? 1 : memory && memory <= 4 ? 2 : 4;
+        return Math.max(1, Math.min(4, cores - 1, memoryLimit));
+    }
+
     class PikafishEngine {
         constructor({ WorkerClass = root.Worker, baseUrl = new URL('./', root.location?.href).href,
             onProgress = () => {}, onLine = () => {} } = {}) {
@@ -80,12 +88,18 @@
             this.scoreListener = null;
             this.analysisListener = null;
             this.generation = 0;
+            this.threadLimit = selectThreadCount(root.navigator);
+            this.mode = root.crossOriginIsolated && typeof root.SharedArrayBuffer === 'function' && this.threadLimit > 1 ? 'multi' : 'single';
+            this.threads = this.mode === 'multi' ? this.threadLimit : 1;
         }
 
         waitFor(match, timeout = 10000) {
             return new Promise((resolve, reject) => {
                 const waiter = { match, resolve, reject };
-                waiter.timer = setTimeout(() => this.fail(new Error('Pikafish response timeout')), timeout);
+                waiter.timer = setTimeout(() => {
+                    const error = new Error('Pikafish response timeout');
+                    if (this.worker && !this.ready) this.rejectWaiters(error); else this.fail(error);
+                }, timeout);
                 this.waiters.add(waiter);
             });
         }
@@ -116,13 +130,29 @@
 
         fail(error) {
             this.generation++;
-            this.worker?.terminate();
+            if (this.worker) this.retireWorker(this.worker);
             this.worker = null;
             this.ready = false;
             this.searching = false;
             this.scoreListener = null;
             this.analysisListener = null;
             this.initializing = null;
+            this.rejectWaiters(error);
+        }
+
+        retireWorker(worker) {
+            if (this.mode !== 'multi') { worker.terminate(); return Promise.resolve(); }
+            this.cleaning = new Promise(resolve => {
+                const finish = () => { clearTimeout(timer); worker.terminate(); resolve(); };
+                const timer = setTimeout(finish, 1000);
+                worker.onmessage = event => { if (event.data.type === 'destroyed') finish(); };
+                worker.onerror = finish;
+                worker.postMessage({ type: 'destroy' });
+            });
+            return this.cleaning;
+        }
+
+        rejectWaiters(error) {
             for (const waiter of this.waiters) {
                 clearTimeout(waiter.timer);
                 waiter.reject(error);
@@ -147,39 +177,70 @@
             let initializedWorker = null;
             this.initializing = (async () => {
                 if (!this.WorkerClass) throw new Error('Web Worker is required');
-                const worker = new this.WorkerClass(new URL('pikafish-worker.js', this.baseUrl));
-                initializedWorker = worker;
-                this.worker = worker;
-                worker.onmessage = event => { if (this.worker === worker) this.receive(event.data); };
-                worker.onerror = event => { if (this.worker === worker) this.fail(new Error(event.message || 'Pikafish Worker failed')); };
-                const loaded = this.waitFor(data => data.type === 'ready', 120000);
-                worker.postMessage({ type: 'init' });
-                await loaded;
-                const checkOwner = () => { if (this.worker !== worker) throw new Error('Pikafish initialization cancelled'); };
-                checkOwner();
-                this.options.clear();
-                await this.handshake('uci', 'uciok');
-                checkOwner();
-                await this.handshake('isready', 'readyok');
-                checkOwner();
-                this.ready = true;
+                const generation = this.generation;
+                if (this.cleaning) {
+                    await this.cleaning;
+                    if (generation !== this.generation) throw new Error('Pikafish initialization cancelled');
+                }
+                for (;;) {
+                    const worker = new this.WorkerClass(new URL('pikafish-worker.js', this.baseUrl));
+                    initializedWorker = worker;
+                    this.worker = worker;
+                    const loadingError = error => { if (this.worker === worker) this.rejectWaiters(error); };
+                    worker.onmessage = event => {
+                        if (this.worker !== worker) return;
+                        if (event.data.type === 'error' && !this.ready) loadingError(new Error(event.data.message));
+                        else this.receive(event.data);
+                    };
+                    worker.onerror = event => {
+                        if (this.worker !== worker) return;
+                        event.preventDefault?.();
+                        const error = new Error(event.message || 'Pikafish Worker failed');
+                        if (!this.ready) loadingError(error); else this.fail(error);
+                    };
+                    try {
+                        const loaded = this.waitFor(data => data.type === 'ready', 120000);
+                        worker.postMessage({ type: 'init', mode: this.mode, threads: this.threads });
+                        await loaded;
+                        const checkOwner = () => { if (this.worker !== worker) throw new Error('Pikafish initialization cancelled'); };
+                        checkOwner();
+                        this.options.clear();
+                        await this.handshake('uci', 'uciok');
+                        checkOwner();
+                        await this.handshake('isready', 'readyok');
+                        checkOwner();
+                        this.ready = true;
+                        break;
+                    } catch (error) {
+                        if (this.worker !== worker || generation !== this.generation || this.mode !== 'multi') throw error;
+                        await this.retireWorker(worker);
+                        if (generation !== this.generation) throw new Error('Pikafish initialization cancelled');
+                        this.worker = null;
+                        this.mode = 'single';
+                        this.threads = 1;
+                        this.onProgress({ type: 'progress', stage: 'fallback', loaded: 0, total: 1 });
+                    }
+                }
                 this.onProgress({ type: 'progress', stage: 'ready', loaded: 1, total: 1 });
             })().catch(error => {
-                if (this.worker === initializedWorker) this.fail(error);
+                if (initializedWorker && this.worker === initializedWorker) this.fail(error);
                 throw error;
             });
             return this.initializing;
         }
 
-        async configure({ threads = 1, hash = 16, skill = 20 } = {}) {
+        async configure({ threads, hash = 16, skill = 20 } = {}) {
             const generation = this.generation;
-            if (threads !== 1) throw new Error('This is a single-thread WASM build');
             if (![8, 16, 32, 64].includes(hash) || !Number.isInteger(skill) || skill < 0 || skill > 20)
                 throw new Error('Invalid Hash/Skill Level');
             await this.init();
             if (generation !== this.generation) throw new Error('Pikafish operation cancelled');
             if (this.searching) throw new Error('Search already running');
-            for (const [name, value] of [['Threads', 1], ['Hash', hash], ['Skill Level', skill]]) {
+            threads = threads ?? this.threads;
+            if (!Number.isInteger(threads) || threads < 1 || threads > (this.mode === 'multi' ? this.threadLimit : 1))
+                throw new Error('Threads exceeds automatic limit / single-thread build');
+            this.threads = threads;
+            for (const [name, value] of [['Threads', threads], ['Hash', hash], ['Skill Level', skill]]) {
                 if (!this.options.has(name)) throw new Error(`Pikafish does not support ${name}`);
                 this.command(`setoption name ${name} value ${value}`);
             }
@@ -234,7 +295,7 @@
         }
 
         async stop() {
-            if (this.searching || (this.worker && !this.ready)) this.fail(new Error('Pikafish search cancelled'));
+            if (this.searching || ((!this.ready) && (this.worker || this.initializing))) this.fail(new Error('Pikafish search cancelled'));
             else {
                 this.generation++;
                 if (this.worker) this.command('stop');
@@ -250,7 +311,7 @@
         destroy() { this.fail(new Error('Pikafish destroyed/cancelled')); }
     }
 
-    const api = { boardToFen, fenToBoard, moveToUci, uciToMove, parseSearchScore, PikafishEngine };
+    const api = { boardToFen, fenToBoard, moveToUci, uciToMove, parseSearchScore, selectThreadCount, PikafishEngine };
     if (typeof module !== 'undefined') module.exports = api;
     else Object.assign(root, api);
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -27,7 +27,7 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
         await page.goto(base, { waitUntil: 'commit' });
         await page.locator('.cell').last().waitFor({ state: 'attached' });
         assert.equal(await page.locator('.cell').count(), 90);
-        await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready, null, { timeout: 120000 });
+        await page.waitForFunction(() => document.querySelector('#offline-status')?.dataset.ready === 'true' && typeof pikafishEngine !== 'undefined' && pikafishEngine?.ready, null, { timeout: 120000 });
         assert.equal(await page.locator('#engine-status').isVisible(), false, 'opponent automatically prepares on first visit');
         assert.equal(await page.locator('#offline-status').isVisible(), false, 'offline readiness is quiet');
         await page.click('#level-intermediate');
@@ -48,7 +48,7 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
             if (offline) {
                 await page.evaluate(() => localStorage.clear());
                 await page.reload({ waitUntil: 'domcontentloaded' });
-                await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready);
+                await page.waitForFunction(() => document.querySelector('#offline-status')?.dataset.ready === 'true' && typeof pikafishEngine !== 'undefined' && pikafishEngine?.ready);
             }
             for (const side of ['b', 'r']) {
                 await page.evaluate(() => {
@@ -98,8 +98,8 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
             return { lines, moves, isolated: crossOriginIsolated, shared: typeof SharedArrayBuffer };
         });
         lines.push(...result.lines);
-        assert.equal(result.isolated, false);
-        assert.equal(result.shared, 'undefined');
+        assert.equal(result.isolated, true);
+        assert.equal(result.shared, 'function');
         assert.ok(lines.some(line => /NNUE/.test(line)), 'NNUE evaluation confirmed');
         assert.ok(lines.includes('uciok') && lines.includes('readyok'));
         await page.click('#level-beginner');
@@ -147,7 +147,7 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
         await page.screenshot({ path: `test-results/${channel}.png`, fullPage: true });
         await context.setOffline(true);
         await page.reload({ waitUntil: 'domcontentloaded' });
-        await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready);
+        await page.waitForFunction(() => document.querySelector('#offline-status')?.dataset.ready === 'true' && typeof pikafishEngine !== 'undefined' && pikafishEngine?.ready);
         await page.evaluate(() => { ensureCloudOpeningBook().getMove = async () => null; });
         await page.click('#level-beginner');
         await page.click('#start-game-button');
@@ -170,10 +170,10 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
         });
         assert.equal(missing, true, 'missing offline NNUE cannot silently use another AI');
         await context.setOffline(false);
-        await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready, null, { timeout: 120000 });
+        await page.waitForFunction(() => document.querySelector('#offline-status')?.dataset.ready === 'true' && typeof pikafishEngine !== 'undefined' && pikafishEngine?.ready, null, { timeout: 120000 });
         await context.setOffline(true);
         await page.reload({ waitUntil: 'domcontentloaded' });
-        await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready);
+        await page.waitForFunction(() => document.querySelector('#offline-status')?.dataset.ready === 'true' && typeof pikafishEngine !== 'undefined' && pikafishEngine?.ready);
         await page.click('#level-custom');
         await page.fill('#custom-time', '0.5');
         await page.locator('#custom-time').dispatchEvent('change');

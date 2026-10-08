@@ -13,7 +13,7 @@ const base = process.env.TEST_URL || 'http://127.0.0.1:8080/chinese-chess-game/'
             context.on('request', request => { const url = new URL(request.url()); if (/^https?:/.test(url.protocol) && url.origin !== new URL(base).origin && !['local.adguard.org','gc.kis.v2.scr.kaspersky-labs.com','me.kis.v2.scr.kaspersky-labs.com'].includes(url.hostname)) external.push(request.url()); });
             await page.goto(base, { waitUntil: 'commit' });
             await page.locator('#offline-status').waitFor({ state: 'attached' });
-            await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready, null, { timeout: 120000 });
+            await page.waitForFunction(() => document.querySelector('#offline-status')?.dataset.ready === 'true' && typeof pikafishEngine !== 'undefined' && pikafishEngine?.ready, null, { timeout: 120000 });
             await context.setOffline(true);
             await page.reload({ waitUntil: 'domcontentloaded' });
             await page.waitForFunction(() => pikafishEngine?.ready);

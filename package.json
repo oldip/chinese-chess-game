@@ -3,8 +3,9 @@
   "private": true,
   "scripts": {
     "start": "node scripts/serve.cjs",
-    "test": "node tests/review.js && node tests/evaluation.js && node tests/evaluation-flow.js && node tests/bundled-opening.js && node tests/opening-download.js && node tests/opening-data.js && node tests/cloud-opening-book.js && node tests/opening-flow.js && node tests/simple-ui.js && node tests/cache.js && node tests/pwa.js && node tests/pikafish.js && node tests/difficulty.js && node tests/repetition.js && node tests/rules.js && node tests/lifecycle.js",
+    "test": "node tests/threads.js && node tests/review.js && node tests/evaluation.js && node tests/evaluation-flow.js && node tests/bundled-opening.js && node tests/opening-download.js && node tests/opening-data.js && node tests/cloud-opening-book.js && node tests/opening-flow.js && node tests/simple-ui.js && node tests/cache.js && node tests/pwa.js && node tests/pikafish.js && node tests/difficulty.js && node tests/repetition.js && node tests/rules.js && node tests/lifecycle.js",
     "test:browser": "node tests/browser.cjs",
+    "test:threads": "node tests/threads-browser.cjs",
     "test:review": "node tests/review-browser.cjs",
     "verify:engine": "node scripts/verify-engine.cjs",
     "build": "node scripts/build.cjs"

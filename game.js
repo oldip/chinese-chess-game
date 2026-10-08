@@ -2596,7 +2596,7 @@ async function requestComputerMove(activeBoard, color, historySequence = moveSeq
         if (stale()) return null;
         engineGameGeneration = generation;
     }
-    await engine.configure({ hash, skill, threads: 1 });
+    await engine.configure({ hash, skill });
     if (stale()) return null;
     // Full history preserves repetition and reversible-move state inside Pikafish.
     await engine.setPosition(boardToFen(initialBoard, RED_COLOR), historySequence.map(key => moveToUci(parseMoveKey(key))));

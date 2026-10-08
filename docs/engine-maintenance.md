@@ -6,22 +6,28 @@
 
 | 項目 | 固定來源／版本 |
 | --- | --- |
-| WASM 發布 | [ousc/Pikafish-wasm · Pikafish-2023-03-05](https://github.com/ousc/Pikafish-wasm/releases/tag/Pikafish-2023-03-05)，`wasm-single` |
+| WASM 發布 | [ousc/Pikafish-wasm · Pikafish-2023-03-05](https://github.com/ousc/Pikafish-wasm/releases/tag/Pikafish-2023-03-05)，`wasm-single` 與 `wasm-multi` |
 | 對應移植原始碼 tag commit | `c01a40cf74b9cec773379d5f5fea835b1fbc0b9f`；完整包 `engine/pikafish-source.zip` |
 | UCI 實測名稱 | `Pikafish dev 2023-03-08`，原始碼以 `__DATE__` 顯示編譯日期，與發布 tag 日期不同 |
 | NNUE | [官方 Pikafish-2023-03-05](https://github.com/official-pikafish/Pikafish/releases/tag/Pikafish-2023-03-05) 隨附 `pikafish.nnue` |
 | NNUE SHA-256 | `9bed5ed4f2f356d361c859728c68b1f9103fa982e5d9fe658b38f71dcbcec0a9` |
 | WASM SHA-256 | `d2f21bfed669fc66546cbe312d25796ab65a13ba7d5277305c7ecdf3a5a043c3` |
+| 多執行緒 WASM SHA-256 | `bcacb7314dc3109c9a156e916ecb881fe970e4b6d0f966ad9cfd74a86f6185e4` |
 | JS loader SHA-256 | `f3771bcdbd344d1efa9b17092b0b72bca708633a66eb7d7a0add248049c5a4d5` |
 
 `pikafish.data` 是上游 Emscripten 預載包，其內容**恰好只有完整原始 NNUE**，18,070,595 bytes；
-已與官方發布的 `.nnue` 做 SHA-256 比對，完全相同。原始 JS loader、WASM、權重均沒有修改。
+已與官方發布的 `.nnue` 做 SHA-256 比對，完全相同。單線程 loader、兩份 WASM、pthread bootstrap 和權重沒有修改。
+多執行緒 loader 加上日期為 2026-10-09 的 GPL 修改通知，只有一處功能修改：將 `var pthreadPoolSize = 1 + navigator.hardwareConcurrency;`
+換成 `var pthreadPoolSize = Module["pthreadPoolSize"] || 2;`。Wrapper 傳入搜尋執行緒數 + 1，最多預建 5 個 pthread Worker，
+另有 1 個外層控制 Worker；額外控制 pthread 不是額外搜尋執行緒。
+原始 loader 的大小／SHA-256 與此修改記錄於 provenance；verify-engine 移除修改通知並反向套用這一行並核對原檔 hash，排除其他修改。
+`pikafish-multi.worker.js` 保留 Emscripten MIT copyright 與 SPDX 標記；原始隔離要求保留於 `MULTI-NOTICE.md`。
 所有其他檔案 hash、大小及來源保存在 `engine/provenance.json` 與 `engine/SHA256SUMS`。
-Worker 初始化會驗證三個執行資源的大小及 SHA-256，再把 NNUE 放進引擎虛擬檔案系統。
+Worker 初始化會驗證所選構建的三個執行資源的大小及 SHA-256，再把 NNUE 放進引擎虛擬檔案系統。
 
-這是較舊但已有真正單線程構建的 Pikafish，不是最新主線。
+這是較舊但同時提供真正單線程及 pthread 構建的 Pikafish，不是最新主線。
 [brianhliou 的較新移植](https://github.com/brianhliou/pikafish-wasm) 使用 pthreads，要求跨來源隔離；
-把 Threads 改為 1 不能消除其 SharedArrayBuffer 要求，所以本次沒有採用其二進位檔。
+把 Threads 改為 1 不能消除其 SharedArrayBuffer 要求，所以未採用其二進位檔；本站多執行緒版本亦須先滿足隔離要求。
 
 ## 授權及重新編譯／更新
 
@@ -39,7 +45,8 @@ Worker 初始化會驗證三個執行資源的大小及 SHA-256，再把 NNUE �
 ```sh
 cd <extracted-source>/src
 make -j build ARCH=wasm-single COMP=emscripten
-# 產物在 src/emscripten/pikafish.{js,wasm,data}
+# 多執行緒可改 ARCH=wasm-multi，並將 Makefile 的 PTHREAD_POOL_SIZE 固定為搜尋執行緒 + 1
+# 產物在 src/emscripten/pikafish.{js,wasm,data}，pthread 構建另有 pikafish.worker.js
 ```
 
 發布者未提供精確 Emscripten 工具鏈版本，所以本次保留原始發布二進位檔，**不聲稱可逐 byte 重現其編譯結果**。
@@ -51,9 +58,19 @@ make -j build ARCH=wasm-single COMP=emscripten
 
 本站根目錄就是已準備好的靜態網站，GitHub Pages 直接從 fix/chinese-chess-playable 分支根目錄發布，不需要部署建置流程。內部 scripts/build.cjs 用於修改資源後重新產生版本及 precache.json；不是玩家或網站伺服器的執行依賴。
 
-難度預設每步最多 500／1500／2000 ms，Skill 0／10／20；自訂時間 0.5–30 秒，Skill 20。沒有經人類棋力校準，初級也可能很強。Hash 由程式自動選 8 或 16 MB，單線程；初始 WASM 記憶體 256 MiB。
+難度預設每步最多 500／1500／2000 ms，Skill 0／10／20；自訂時間 0.5–30 秒，Skill 20。沒有經人類棋力校準，初級也可能很強。Hash 由程式自動選 8 或 16 MB；兩種構建的初始 WASM 記憶體均為 256 MiB，多執行緒共用同一 WASM 記憶體與 NNUE。
 
 HTML 可以因本機防護軟體加入標記而改變大小，下載成功後直接快取；JS、WASM、NNUE 等其他資源仍依版本清單驗證長度和 SHA-256。首次全部快取成功及接管頁面後才準備 AI，正常走棋重用同一 Worker／NNUE。已啟用快取遺失時，恢復網絡會自動補回缺少的檔案。
+
+## 自動多執行緒與 GitHub Pages 隔離
+
+- `selectThreadCount` 使用 `navigator.hardwareConcurrency`（邏輯處理器，可能是瀏覽器縮減值）：`max(1, min(4, cores - 1, memoryLimit))`；缺少有效核心數時使用 1。
+- `deviceMemory` ≤2 GB 的 memoryLimit 為 1，≤4 GB 為 2，其餘／沒有回報時為 4。不會以核心數代替實際 CPU 使用率。
+- 只有 `crossOriginIsolated`、SharedArrayBuffer 可用且上限 >1 才載入 pthread WASM；否則載入原有不依賴共享記憶體的單線程 WASM。初始化／UCI 握手錯誤或逾時亦回退一次；取消操作不觸發回退。
+- 既有 `service-worker.js` 對本站回應加入 COOP `same-origin`、COEP `require-corp`、CORP `same-origin`。GitHub Pages 的第一次導航尚無標頭，`pwa.js` 等全部快取完成及接管後最多自動重載一次。已開始的棋局不重載，下次開頁才啟用隔離；隔離失敗或 sessionStorage 被封鎖時仍可用單線程。没有註冊競爭同一 scope 的第二個 SW。
+- 全部 31 個靜態資源一起驗證快取，單／多執行緒共用一份 NNUE。更新仍等待舊頁面關閉，避免混用引擎世代。
+- 取消搜尋／初始化、destroy 時先使世代失效，通知 Wrapper 明確 `PThread.terminateAllThreads()`，再終止外層 Worker。新初始化等待清理確認，1 秒無回應則強制終止；正常走棋重用同一個引擎。
+- 這是 CPU 搜尋並行，沒有 GPU／遠端運算；不會調高難度思考時間，也不保证倍數加速。手機記憶體、發熱與省電政策仍影響速度。
 
 ## 局面評分與弱化對手
 

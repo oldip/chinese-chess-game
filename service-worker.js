@@ -1,5 +1,5 @@
 // Regenerate precache.json with `npm run build` whenever a deployable file changes.
-const VERSION = 'pikafish-d7f3f3fa97b0f86e';
+const VERSION = 'pikafish-07df6c7c464aae52';
 const scope = new URL('./', self.location.href);
 const CACHE_PREFIX = `chinese-chess-${encodeURIComponent(scope.pathname)}-`;
 const CACHE = `${CACHE_PREFIX}${VERSION}`;
@@ -116,6 +116,14 @@ self.addEventListener('message', event => {
     if (event.data?.type === 'prepare-offline') event.waitUntil(prepare().catch(() => {}));
 });
 
+function isolatedResponse(response) {
+    const headers = new Headers(response.headers);
+    headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+    headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+    headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
     if (event.request.method !== 'GET' || url.origin !== scope.origin || !url.pathname.startsWith(scope.pathname)) return;
@@ -140,5 +148,5 @@ self.addEventListener('fetch', event => {
             }
         }
         return fetch(event.request);
-    })());
+    })().then(isolatedResponse));
 });

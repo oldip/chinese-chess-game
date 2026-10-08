@@ -1,5 +1,16 @@
 # 驗證紀錄（2026-10-09）
 
+## 自動多執行緒（本次）
+
+- 十七組單元／流程測試通過，含保留 CPU、最多 4 個與低記憶體上限、UCI Threads 設定、初始化錯誤／逾時回退、取消不復活舊 Worker、一次重載／不重載已開始棋局。原有規則、弱化、評分及復盤測試仍通過。
+- `verify-engine` 檢查全部來源 hash、真正 pthread／shared-memory imports、原有單線程無共享記憶體依賴；多執行緒 loader 移除日期通知及反向一行修改後等於原始發布 hash。共用 NNUE 已逐 byte 比對相同。
+- Windows Chrome 154.0.8037.98／Edge 154.0.4258.62 本機 HTTP 子路徑 main／review browser suite 通過；首次無隔離導航由既有 SW 完成快取後重載，實際 crossOriginIsolated 與 SharedArrayBuffer 可用。
+- `tests/threads-browser.cjs` 在兩瀏覽器用不同 navigator 回報模擬裝置政策，真正 WASM 完成 4／3／2／1 個搜尋執行緒的合法走法；CDP 確認 Worker pool 數量為搜尋數 + 1（控制 pthread），另有外層 Worker。
+- 各瀏覽器連續取消三次 30 秒搜尋，清理後 CDP dedicated Worker 數歸零，再建立引擎；沒有遺留 pthread。清理確認與 Chromium target 消失並非同一時刻，測試等待 target 收斂。
+- 刪除 Service Worker API 的獨立測試頁保持真正未隔離環境，以單線程返回合法走法。損壞多執行緒 WASM 快取後亦成功回退單線程；恢復資源並斷網重載後重新以 4 執行緒搜尋。
+- 執行資源共 31 項，約 22.54 MB；没有新增模型或後端服務。手機核心／記憶體政策使用模擬回報，Firefox／Android 真機與性能倍數尚未實測。
+- 公開 GitHub Pages 驗收待本次提交部署後補記。
+
 ## 結束後復盤
 
 - 十六組單元／流程測試通過。新增七類走法、較慢將殺不誤標錯招、普通換子不標妙手、完整歷史與同起點強制實際走法比較、取消、僅結束後入口及錯誤提示保留測試。

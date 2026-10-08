@@ -13,6 +13,7 @@ window.offlinePreparation = new Promise(resolve => { finishOfflinePreparation = 
     };
     if (!('serviceWorker' in navigator) || !window.isSecureContext) { unavailable(); return; }
     let downloading = false;
+    let reloading = false;
     const check = () => navigator.serviceWorker.controller?.postMessage({ type: 'cache-status' });
     navigator.serviceWorker.addEventListener('message', ({ data, source }) => {
         // A waiting update must not change the current page's download/readiness state.
@@ -29,6 +30,21 @@ window.offlinePreparation = new Promise(resolve => { finishOfflinePreparation = 
         }
         if (data.type === 'cache-status') {
             if (data.ready) {
+                if (reloading) return;
+                // Pages cannot set headers: the verified cache supplies isolation after one reload.
+                const playing = typeof setupOpen !== 'undefined' && !setupOpen && typeof gameActive !== 'undefined' && gameActive;
+                if (!playing && navigator.serviceWorker.controller && window.crossOriginIsolated === false) {
+                    try {
+                        const key = 'chinese-chess-isolation:' + window.location.pathname;
+                        if (!window.sessionStorage.getItem(key)) {
+                            window.sessionStorage.setItem(key, '1');
+                            reloading = true;
+                            status('正在準備電腦對手…');
+                            window.location.reload();
+                            return;
+                        }
+                    } catch { /* Storage blocked: keep the usable single-thread engine. */ }
+                }
                 downloading = false;
                 status('', true);
                 finishOfflinePreparation(true);

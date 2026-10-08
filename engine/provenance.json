@@ -1,6 +1,6 @@
 {
   "release": "Pikafish-2023-03-05",
-  "variant": "wasm-single",
+  "variant": "wasm-single + wasm-multi",
   "runtimeUciName": "Pikafish dev 2023-03-08",
   "runtimeNameExplanation": "Published release binary identifies as dev plus __DATE__ build date; do not confuse that with the release tag.",
   "distribution": "https://github.com/ousc/Pikafish-wasm/releases/download/Pikafish-2023-03-05/Pikafish-wasm.2023-03-05.zip",
@@ -12,8 +12,12 @@
     "format": "Unmodified raw pikafish.nnue, preloaded as /pikafish.nnue by upstream loader",
     "sha256": "9bed5ed4f2f356d361c859728c68b1f9103fa982e5d9fe658b38f71dcbcec0a9"
   },
-  "modifications": "None to distributed engine/loader/NNUE. Adapter and Worker wrapper are separate files.",
-  "compilation": "make -j build ARCH=wasm-single COMP=emscripten",
+  "modifications": "Single build, both WASM binaries, pthread bootstrap and NNUE unchanged. Multi loader carries a dated GPL modification notice and replaces var pthreadPoolSize = 1 + navigator.hardwareConcurrency; with var pthreadPoolSize = Module[\"pthreadPoolSize\"] || 2; to bound the preallocated pool. Adapter and Worker wrapper are separate files.",
+  "originalMultiLoader": {
+    "bytes": 130386,
+    "sha256": "1a17af16bea28b051dbee4ca9c1080790d2a57b51064bbd89a2f389213705a9f"
+  },
+  "compilation": "make -j build ARCH=wasm-single COMP=emscripten; or ARCH=wasm-multi COMP=emscripten (bound PTHREAD_POOL_SIZE to search threads + 1)",
   "toolchain": "Release publisher did not pin exact Emscripten version. Original binary retained; byte-identical rebuild not claimed.",
   "files": {
     "pikafish.js": {
@@ -27,6 +31,22 @@
     "pikafish.data": {
       "bytes": 18070595,
       "sha256": "9bed5ed4f2f356d361c859728c68b1f9103fa982e5d9fe658b38f71dcbcec0a9"
+    },
+    "pikafish-multi.js": {
+      "bytes": 130561,
+      "sha256": "48acf394fd2d3a98ba6d64a444e38f95b9166dbef73c8c4e19cdc3303bbdc751"
+    },
+    "pikafish-multi.wasm": {
+      "bytes": 609179,
+      "sha256": "bcacb7314dc3109c9a156e916ecb881fe970e4b6d0f966ad9cfd74a86f6185e4"
+    },
+    "pikafish-multi.worker.js": {
+      "bytes": 5769,
+      "sha256": "ebdc61f53050d6d1c49dce3e9ccbb542033e7e9dc2b804a72f1f71e508e504ca"
+    },
+    "MULTI-NOTICE.md": {
+      "bytes": 245,
+      "sha256": "3068e329d8c67380be1c73d0552f3777c215d218b5a2f9669bf656bae9e7b432"
     },
     "pikafish-source.zip": {
       "bytes": 285704,

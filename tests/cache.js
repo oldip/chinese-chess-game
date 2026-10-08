@@ -18,7 +18,7 @@ const caches = {
     keys: async () => [...stores.keys()],
     delete: async name => stores.delete(name)
 };
-const context = vm.createContext({ URL, Response, Uint8Array, crypto: webcrypto, caches,
+const context = vm.createContext({ URL, Response, Headers, Uint8Array, crypto: webcrypto, caches,
     self: { location: { href: scope + 'service-worker.js' }, addEventListener: (name, handler) => handlers.set(name, handler),
         clients: { matchAll: async () => [{ postMessage: message => messages.push(message) }], claim: async () => {} } },
     fetch: async url => {
@@ -49,6 +49,8 @@ function event(name, extra = {}) {
     assert.ok(messages.some(message => message.type === 'cache-status' && message.ready));
     online = false;
     const response = await event('fetch', { request: { method: 'GET', mode: 'navigate', url: scope } });
+    assert.equal(response.headers.get('Cross-Origin-Opener-Policy'), 'same-origin');
+    assert.equal(response.headers.get('Cross-Origin-Embedder-Policy'), 'require-corp');
     assert.match(await response.text(), /injected markup/, 'modified HTML remains available offline');
     const store = [...stores.values()][0];
     store.delete(scope + 'engine/pikafish.data');

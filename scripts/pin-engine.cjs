@@ -5,14 +5,14 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const files = {};
-for (const name of ['pikafish.js', 'pikafish.wasm', 'pikafish.data', 'pikafish-source.zip', 'Copying.txt', 'AUTHORS']) {
+for (const name of ['pikafish.js', 'pikafish.wasm', 'pikafish.data', 'pikafish-multi.js', 'pikafish-multi.wasm', 'pikafish-multi.worker.js', 'MULTI-NOTICE.md', 'pikafish-source.zip', 'Copying.txt', 'AUTHORS']) {
     const bytes = fs.readFileSync(path.join(root, 'engine', name));
     files[name] = { bytes: bytes.length, sha256: sha256(bytes) };
 }
 const officialNetHash = '9bed5ed4f2f356d361c859728c68b1f9103fa982e5d9fe658b38f71dcbcec0a9';
 if (files['pikafish.data'].sha256 !== officialNetHash) throw new Error('Does not match verified official 2023-03-05 NNUE');
 const metadata = {
-    release: 'Pikafish-2023-03-05', variant: 'wasm-single',
+    release: 'Pikafish-2023-03-05', variant: 'wasm-single + wasm-multi',
     runtimeUciName: 'Pikafish dev 2023-03-08',
     runtimeNameExplanation: 'Published release binary identifies as dev plus __DATE__ build date; do not confuse that with the release tag.',
     distribution: 'https://github.com/ousc/Pikafish-wasm/releases/download/Pikafish-2023-03-05/Pikafish-wasm.2023-03-05.zip',
@@ -20,8 +20,9 @@ const metadata = {
     source: 'https://github.com/ousc/Pikafish-wasm/tree/c01a40cf74b9cec773379d5f5fea835b1fbc0b9f',
     officialNetRelease: 'https://github.com/official-pikafish/Pikafish/releases/tag/Pikafish-2023-03-05',
     nnue: { file: 'pikafish.data', format: 'Unmodified raw pikafish.nnue, preloaded as /pikafish.nnue by upstream loader', sha256: officialNetHash },
-    modifications: 'None to distributed engine/loader/NNUE. Adapter and Worker wrapper are separate files.',
-    compilation: 'make -j build ARCH=wasm-single COMP=emscripten',
+    modifications: 'Single build, both WASM binaries, pthread bootstrap and NNUE unchanged. Multi loader carries a dated GPL modification notice and replaces var pthreadPoolSize = 1 + navigator.hardwareConcurrency; with var pthreadPoolSize = Module[\"pthreadPoolSize\"] || 2; to bound the preallocated pool. Adapter and Worker wrapper are separate files.',
+    originalMultiLoader: { bytes: 130386, sha256: '1a17af16bea28b051dbee4ca9c1080790d2a57b51064bbd89a2f389213705a9f' },
+    compilation: 'make -j build ARCH=wasm-single COMP=emscripten; or ARCH=wasm-multi COMP=emscripten (bound PTHREAD_POOL_SIZE to search threads + 1)',
     toolchain: 'Release publisher did not pin exact Emscripten version. Original binary retained; byte-identical rebuild not claimed.',
     files
 };
