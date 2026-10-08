@@ -9,7 +9,7 @@
 - 各瀏覽器連續取消三次 30 秒搜尋，清理後 CDP dedicated Worker 數歸零，再建立引擎；沒有遺留 pthread。清理確認與 Chromium target 消失並非同一時刻，測試等待 target 收斂。
 - 刪除 Service Worker API 的獨立測試頁保持真正未隔離環境，以單線程返回合法走法。損壞多執行緒 WASM 快取後亦成功回退單線程；恢復資源並斷網重載後重新以 4 執行緒搜尋。
 - 執行資源共 31 項，約 22.54 MB；没有新增模型或後端服務。手機核心／記憶體政策使用模擬回報，Firefox／Android 真機與性能倍數尚未實測。
-- 公開 GitHub Pages 驗收待本次提交部署後補記。
+- 功能提交 `3153a08` 的公開 GitHub Pages 版本 `pikafish-07df6c7c464aae52` 與提交的 31 項資源清單完全一致，總計 22,541,761 bytes。正式 HTTPS Chrome／Edge 的 main、review、threads 三套 browser suite 全部通過上述對弈／離線／4、3、2、1 執行緒／回退／反覆取消清理；pageerror 及原有主套件非預期 external 為空。使用正常 TLS，測試程序僅為本機 DNS 問題指定域名解析 IP，網站沒有硬編碼 IP。
 
 ## 結束後復盤
 
