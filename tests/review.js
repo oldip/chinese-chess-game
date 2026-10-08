@@ -15,6 +15,8 @@ assert.equal(grade(300, 300, true, true), '妙手');
 assert.equal(grade(300, 300, true, true, 5), '正著', 'shallow searches cannot assert brilliance');
 assert.equal(classifyMove({ best: { type: 'mate', value: 3 }, played: cp(100), same: false }).label, '漏著');
 assert.equal(classifyMove({ best: cp(30), played: { type: 'mate', value: -2 }, same: false }).label, '錯招');
+assert.match(classifyMove({ best: cp(30), played: { type: 'mate', value: -2 }, same: false }).reason, /對手.*將殺/, 'mate must be explained without a synthetic numerical loss');
+assert.equal(classifyMove({ best: { type: 'mate', value: -2 }, played: { type: 'mate', value: -5 }, same: false }).label, '良好', 'delaying an already forced loss is not a new mistake');
 assert.equal(classifyMove({ best: null, played: cp(0) }).label, '待分析');
 assert.equal(classifyMove({ best: { type: 'mate', value: 1 }, played: { type: 'mate', value: 5 }, same: false }).label, '優秀', 'slower forced mate is not a mistake');
 assert.equal(classifyMove({ best: cp(20), played: { type: 'mate', value: 4 }, same: false }).label, '優秀', 'a later-discovered mate must not be called an error');

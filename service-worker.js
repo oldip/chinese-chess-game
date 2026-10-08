@@ -1,5 +1,5 @@
 // Regenerate precache.json with `npm run build` whenever a deployable file changes.
-const VERSION = 'pikafish-a453211f2ca5f819';
+const VERSION = 'pikafish-d7f3f3fa97b0f86e';
 const scope = new URL('./', self.location.href);
 const CACHE_PREFIX = `chinese-chess-${encodeURIComponent(scope.pathname)}-`;
 const CACHE = `${CACHE_PREFIX}${VERSION}`;
