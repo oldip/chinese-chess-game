@@ -40,7 +40,10 @@ Chrome／Edge 在這個實際環境下均完成公開站離線對弈及恢復測
 - 單元測試確認未查過局面不需網絡、非法走法仍被過濾、取消後不返回舊走法，包外保留雲庫回退。
 - Chrome 本機 HTTPS、Edge 本機 HTTP 完整 browser suite 通過。首次快取後未曾下棋即清除 localStorage、斷網 reload，紅黑 AI 自訂 30 秒均約 0.39–0.63 秒走棋，雲庫請求為 0。
 - Edge 本機自簽 HTTPS 多次導航逾時；單獨診斷曾成功但不穩定，改以 localhost HTTP 通過。導航驗收改等棋盤 DOM 建立及完整快取／引擎 ready，不以隐藏棋盤可見作為條件。
-- 本機系統 DNS 解析故障，維護下載使用 HTTPS 查得的來源位址及正常 TLS 驗證；正式 HTTPS 公開站驗收會另記錄。
+- 本機系統 DNS 解析故障，維護下載使用 HTTPS 查得的來源位址及正常 TLS 驗證；公開站测试亦只在測試行程使用同樣已查證的 DNS 位址，保留正常 HTTPS 憑證驗證，沒有修改系統 DNS 或玩家網站。
+
+- `6bde534` 公開版本 `pikafish-beca8d5bec63b16d` 與根目錄清單一致。正式 GitHub Pages HTTPS 的 Chrome／Edge 完整 browser suite 均通過，含首次未曾對弈就斷網重開、紅黑自訂 30 秒開局直接走棋、本機 WASM 8 ply／對弈／悔棋／取消／頁面生命週期／快取遺失與自動恢復。
+- 公開站開局階段雲庫請求為 0，全部使用已快取的本站開局包；pageerror／非預期 external 清單均為空。Edge 正式 HTTPS 已通過，因此本機自簽 HTTPS 的阻塞不影響此次公開站驗收。
 
 ## 先前聯網開局整合驗證
 
