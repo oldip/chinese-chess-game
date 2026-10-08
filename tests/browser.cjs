@@ -13,12 +13,14 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
         try {
         const context = await browser.newContext({ ignoreHTTPSErrors: localCertificate });
         const page = await context.newPage();
-        const errors = [], external = [], protectionRequests = [], lines = [];
+        const errors = [], external = [], protectionRequests = [], cloudRequests = [], lines = [];
         page.on('pageerror', error => errors.push(error.message));
         context.on('request', request => {
             const url = new URL(request.url());
             if (url.origin !== new URL(base).origin && /^https?:/.test(url.protocol)) {
-                if (protectionHosts.has(url.hostname)) protectionRequests.push(url.origin);
+                if (url.origin === 'https://www.chessdb.cn' && url.pathname === '/chessdb.php' &&
+                    url.searchParams.get('action') === 'querybest' && url.searchParams.get('learn') === '0') cloudRequests.push(request.url());
+                else if (protectionHosts.has(url.hostname)) protectionRequests.push(url.origin);
                 else external.push(request.url());
             }
         });
@@ -33,6 +35,42 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
         await page.locator('#custom-time').dispatchEvent('change');
         assert.equal(await page.evaluate(() => getSearchTimeBudget(board, [])), 1000);
         await page.screenshot({ path: `test-results/${channel}-settings.png`, fullPage: true });
+        const bookTimings = [];
+        for (const offline of [false, true]) {
+            if (offline) {
+                await context.setOffline(true);
+                await page.reload({ waitUntil: 'domcontentloaded' });
+                await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready);
+            }
+            for (const side of ['b', 'r']) {
+                await page.evaluate(() => {
+                    openSetupPanel();
+                    window.engineSearchCalls = 0;
+                    const search = pikafishEngine.getBestMove.bind(pikafishEngine);
+                    pikafishEngine.getBestMove = options => { window.engineSearchCalls++; return search(options); };
+                });
+                await page.click('#level-custom');
+                await page.fill('#custom-time', '30');
+                await page.locator('#custom-time').dispatchEvent('change');
+                await page.click(side === 'b' ? '#side-black' : '#side-red');
+                const started = Date.now();
+                await page.click('#start-game-button');
+                if (side === 'r') {
+                    await page.click('[data-row="6"][data-col="2"]');
+                    await page.click('[data-row="5"][data-col="2"]');
+                }
+                await page.waitForFunction(expected => moveSequence.length === expected && !aiThinking, side === 'b' ? 1 : 2, { timeout: 6000 });
+                assert.equal(await page.evaluate(() => window.engineSearchCalls), 0, '30-second openings use official cloud/cache without searching');
+                const elapsed = Date.now() - started;
+                assert.ok(elapsed < 6000, 'book must not wait 30 seconds');
+                bookTimings.push({ offline, aiSide: side === 'b' ? 'red' : 'black', elapsed });
+            }
+            await page.evaluate(() => openSetupPanel());
+        }
+        await context.setOffline(false);
+        assert.ok(cloudRequests.length >= 2, 'both side openings queried the real official cloud database');
+        // Remaining checks deliberately exercise the actual local WASM path.
+        await page.evaluate(() => { cloudOpeningBook.getMove = async () => null; setHumanSide('r'); });
         const result = await page.evaluate(async () => {
             const lines = [];
             const engine = new PikafishEngine({ onLine: line => lines.push(line) });
@@ -91,6 +129,7 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
         await context.setOffline(true);
         await page.reload({ waitUntil: 'domcontentloaded' });
         await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready);
+        await page.evaluate(() => { ensureCloudOpeningBook().getMove = async () => null; });
         await page.click('#level-beginner');
         await page.click('#start-game-button');
         await page.click('[data-row="6"][data-col="2"]');
@@ -126,8 +165,8 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
         assert.equal(await page.locator('#custom-time').isDisabled(), true);
         assert.deepEqual(errors, []);
         assert.deepEqual(external, []);
-        fs.writeFileSync(`test-results/${channel}.json`, JSON.stringify({ url: base, channel, version: browser.version(), result, errors, external, protectionRequests, offline: true }, null, 2));
-        console.log(`${channel} ${browser.version()}: automatic preparation, custom time, 8 real engine plies, UI play/undo/sides/cancel/responsiveness/bfcache, subpath + offline replay/eviction/automatic recovery passed`);
+        fs.writeFileSync(`test-results/${channel}.json`, JSON.stringify({ url: base, channel, version: browser.version(), result, bookTimings, cloudRequests, errors, external, protectionRequests, offline: true }, null, 2));
+        console.log(`${channel} ${browser.version()}: official 30-second opening fast path/cache for both sides, automatic preparation, custom time, 8 real engine plies, UI play/undo/sides/cancel/responsiveness/bfcache, subpath + offline replay/eviction/automatic recovery passed`);
         } finally { await browser.close(); }
     }
 })().catch(error => { console.error(error); process.exit(1); });

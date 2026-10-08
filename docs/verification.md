@@ -4,7 +4,7 @@
 
 | 檢查 | 結果／邊界 |
 | --- | --- |
-| `npm test` | 八組測試通過：簡潔設定／自訂時間、快取完整性與版本修復、等待更新隔離、FEN/90 格座標往返與 UCI/Worker、难度及悔棋、長將/長捉、將死/困斃、頁面離開清理 |
+| `npm test` | 十組測試通過：雲庫協定／離線走法快取、開局命中／取消／合法過濾／本機回退、簡潔設定／自訂時間、快取完整性與版本修復、等待更新隔離、FEN/90 格座標往返與 UCI/Worker、难度及悔棋、長將/長捉、將死/困斃、頁面離開清理 |
 | `npm run verify:engine` | loader/WASM/NNUE/source/LICENSE/AUTHORS hash 全部匹配；WASM 無 shared-memory／pthread import，loader 無 SharedArrayBuffer |
 | 官方 NNUE 比對 | ousc 的 18,070,595-byte `.data` 與官方 2023-03-05 發布包 `.nnue` SHA-256 完全相同 |
 | Chrome 154.0.8037.98／Windows | 真實 WASM UCI、NNUE 啟用輸出、初始合法走法、紅黑交替 8 ply（4 回合）通過 |
@@ -18,8 +18,8 @@
 | 完全離線 | Playwright `context.setOffline(true)` 後重新載入頁面，重新建立 Worker／載入 NNUE並完成玩家/AI 回合；Chrome/Edge 通過 |
 | 首次準備／簡潔設定 | 不點任何按鈕即可完成全資源快取及真實引擎初始化；準備完成後隱藏載入提示；初／中／高級與自訂秒數控制通過 |
 | 快取遺失／修復 | 離線刪除 NNUE cache → reload 撤銷 ready → 初始化失敗 → 恢復網絡自動補回 → 再斷網 reload 並完成自訂時間對弈；兩瀏覽器通過 |
-| 無 AI server | 本機 HTTPS 正常流程沒有本站來源以外的請求。公開網站測試另記錄本機防護軟體注入請求，網站本身 external 與 pageerror 清單為空 |
-| 靜態發布檔 | 20 個快取資源；約 19.34 MB；根目錄可直接發布，含原始碼與授權；無舊 handcrafted Worker/engine-core runtime 依賴 |
+| 開局雲庫網絡邊界 | 僅額外允許使用者選定的 HTTPS chessdb.cn `querybest&learn=0`；没有提交遠端搜尋／學習。其他非預期請求仍使測試失敗；本機防護注入獨立記錄，external／pageerror 清單為空 |
+| 靜態發布檔 | 21 個快取資源；約 19.34 MB；根目錄可直接發布，含原始碼與授權；無舊 handcrafted Worker/engine-core runtime 依賴 |
 | Git byte 保護 | `.gitattributes` 對 engine/* 禁止換行轉換，避免 Windows checkout 使 vendor SHA-256 改變 |
 
 完整 browser 程式在 `tests/browser.cjs`；本次 JSON UCI 輸出及截圖在未追蹤的 `test-results/`。
@@ -30,8 +30,16 @@ Edge 曾有一次首次 HTTPS 導航逾時，獨立重跑完整流程通過。
 公開 HTTPS 也被本機 Kaspersky／AdGuard 注入腳本，初次網絡斷言因此失敗；
 確認其來源後以 `TEST_ALLOW_PROTECTION_INJECTION=1` 另記錄三個實際觀察到的主機
 `local.adguard.org`、`gc.kis.v2.scr.kaspersky-labs.com`、`me.kis.v2.scr.kaspersky-labs.com`。
-其他外部 HTTP/S 請求仍直接使測試失敗；未停用防護軟體或移除頁面注入腳本。
+除了明確允許的雲庫查詢，其他外部 HTTP/S 請求仍直接使測試失敗；未停用防護軟體或移除頁面注入腳本。
 Chrome／Edge 在這個實際環境下均完成公開站離線對弈及恢復測試。
+
+## 本次開局整合驗證
+
+Chrome／Edge 均使用真正的 chessdb.cn 回應，紅、黑 AI 在自訂 30 秒下分別測試命中走法，
+並斷網重新載入後使用持久快取走出相同局面。引擎 getBestMove 呼叫計數為 0，證明沒有等待 30 秒搜尋。
+本機 HTTPS 實測連線開局約 0.87–1.41 秒，離線約 0.33–0.36 秒（含走棋動畫；不是性能保證）。
+其餘完整瀏覽器回歸強制雲庫未命中，驗證真正本機 WASM 搜尋、多回合與離線回退。
+雲庫網絡失敗／逾時、錯誤座標、規則排除走法、取消舊查詢均有自動測試。
 
 ## 已修正的重現問題
 
@@ -50,6 +58,7 @@ Chrome／Edge 在這個實際環境下均完成公開站離線對弈及恢復測
 ## 尚未實測／限制
 
 - GitHub API 已確認 Pages 從 `fix/chinese-chess-playable` 根目錄發布，無需 Actions 建置；本機與公開網站已驗收。
+- 雲庫可用性及涵蓋率不保證；離線未查過的局面會使用完整所選本機思考時間。
 - 標準 Firefox 與 Android Chrome 真機、PWA 系統安裝操作、低記憶體裝置效能。
 - 多版本公開部署的等待更新流程未做端到端部署測試；程式使用完整版本隔離，沒有 skipWaiting。
 - 若線上已有新版且被清除的舊版資源已改變，不能混用版本；關閉本網站全部分頁後再開啟會啟用下載好的新版。
@@ -63,6 +72,7 @@ Chrome／Edge 在這個實際環境下均完成公開站離線對弈及恢復測
 | --- | --- |
 | game.js | 接入 Adapter、完整歷史／root filtering、世代取消、錯誤重試、頁面生命週期；保留規則/UI |
 | index.html、styles.css | 保留原樣式；難度與自訂秒數、簡潔下載／離線狀態，移除技術設定與手動維護按鈕 |
+| cloud-opening-book.js、tests/cloud-opening-book.js、tests/opening-flow.js | 官方網頁雲庫查詢、持久回應快取、取消／合法過濾／本機回退測試 |
 | pikafish-adapter.js、pikafish-worker.js | FEN/UCI、握手、設定、載入 hash、搜尋、停止、重置與資源清理 |
 | engine/* | 固定真實發布檔、官方相同 NNUE、對應 source ZIP、授權／作者／hash／來源紀錄 |
 | service-worker.js、pwa.js、precache.json | 完整驗證快取、下載進度、版本／子路徑隔離、更新與資源遺失處理 |

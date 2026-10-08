@@ -4,7 +4,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 require('./verify-engine.cjs');
 const root = path.resolve(__dirname, '..');
-const files = ['index.html', 'styles.css', 'game.js', 'pikafish-adapter.js', 'pikafish-worker.js', 'pwa.js', 'manifest.webmanifest',
+const files = ['index.html', 'styles.css', 'game.js', 'cloud-opening-book.js', 'pikafish-adapter.js', 'pikafish-worker.js', 'pwa.js', 'manifest.webmanifest',
     ...fs.readdirSync(path.join(root, 'icons')).map(name => `icons/${name}`),
     ...fs.readdirSync(path.join(root, 'engine')).map(name => `engine/${name}`)];
 const serviceWorkerPath = path.join(root, 'service-worker.js');

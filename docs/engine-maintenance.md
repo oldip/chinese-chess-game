@@ -54,3 +54,18 @@ make -j build ARCH=wasm-single COMP=emscripten
 難度預設每步最多 500／1500／4000 ms，Skill 0／10／20；自訂時間 0.5–30 秒，Skill 20。沒有經人類棋力校準，初級也可能很強。Hash 由程式自動選 8 或 16 MB，單線程；初始 WASM 記憶體 256 MiB。
 
 HTML 可以因本機防護軟體加入標記而改變大小，下載成功後直接快取；JS、WASM、NNUE 等其他資源仍依版本清單驗證長度和 SHA-256。首次全部快取成功及接管頁面後才準備 AI，正常走棋重用同一 Worker／NNUE。已啟用快取遺失時，恢復網絡會自動補回缺少的檔案。
+
+## 官方網頁雲庫
+
+依使用者確認，開局另接入官方網頁指南使用的 [chessdb.cn](https://www.pikafish.com/wiki/guide/web-version.html#查询云库)，
+API 行為依 [雲庫公開文件](https://www.chessdb.cn/cloudbook_api.html)。這是棋盤程式外接的服務，
+不是 Pikafish WASM／NNUE 內建資料；不能把資料庫走法宣稱為 Pikafish 自己的搜尋結果。
+
+本站前 20 ply 使用 HTTPS `querybest`、`learn=0`，不帶 credentials；最多等待 2.5 秒。
+只接受 `move:` 回應，並經既有合法走法與長將／長捉過濾。`search:`、未命中、無效回應或失敗
+均回退本機搜尋；沒有呼叫 `queue`／`store` 或自動學習。取消對局會中止查詢，世代檢查隔離舊回應。
+
+查得走法按局面與行棋方保存在 localStorage 的 `chinese-chess-cdb-v1:` key；
+離線只可直接使用曾查過的局面，其他局面仍由本機引擎思考。網站資料被清除時此快取亦會消失。
+未打包、爬取或重新授權整份雲庫；只快取個別查詢回應，服務內容與可用性由 chessdb.cn 管理。
+雲庫沒有固定發布版本；本站固定的是查詢協定與快取格式，原 WASM／NNUE 版本及 hash 不變。

@@ -2,7 +2,9 @@
 
 The requested outcome is the existing website, driven by genuine local Pikafish,
 with one unshared WASM worker and all runtime assets hosted beneath the Pages scope.
-No remote AI, framework migration or changes to board artwork are required.
+No remote AI computation, framework migration or changes to board artwork are required.
+The user subsequently selected the official web GUI cloud book: optional read-only
+chessdb.cn queries are now intentional; local Pikafish remains the search fallback.
 
 ## Repository analysis
 
@@ -45,6 +47,13 @@ performMove. Preserve UI, local mode and existing undo limits. Use preset thinki
 times of 500/1500/4000 ms and custom 0.5–30 seconds. Keep engine details out of the
 player UI; prepare automatically on first visit and display simple offline progress.
 
+During the first 20 ply, cloud-opening-book.js queries querybest with learn=0,
+checks returned moves against the same root filter and caches individual responses
+in localStorage. A hit bypasses timed search; misses, invalid moves, offline cache
+misses and a 2.5-second timeout use the unchanged full-history local search.
+Cancel the query alongside Worker search, and check generation after awaiting it.
+The historical handcrafted opening table is not used.
+
 ## Implementation and acceptance sequence
 
 1. Add failing conversion/adapter tests, vendor pinned engine/source, implement
@@ -53,7 +62,8 @@ player UI; prepare automatically on first visit and display simple offline progr
    reset/setup/mode cancellation, timers, rules and difficulty regression tests.
 3. Add manifest and versioned Service Worker cache with progress and explicit
    cache-complete acknowledgement. Verify subpath, offline restart/search, missing
-   resource failure and same-origin-only requests in real browser automation.
+   resource failure and no unexpected requests in real browser automation; the
+   explicitly selected read-only chessdb.cn opening endpoint is permitted.
 4. Publish ready static files from the branch root. Put hashes, licensing and source
    maintenance in dedicated documentation. Run unit tests, browser tests and hash verification. Record exact
    tested environments; do not claim Android or stock Firefox without running them.

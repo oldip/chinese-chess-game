@@ -2455,6 +2455,17 @@ function applyPracticalOpeningChoice(activeBoard, color, legalMoves, candidateMo
 }
 
 let pikafishEngine = null;
+let cloudOpeningBook = null;
+let cloudQueryController = null;
+
+function ensureCloudOpeningBook() {
+    if (!cloudOpeningBook) {
+        let storage = null;
+        try { storage = window.localStorage; } catch {}
+        cloudOpeningBook = new CloudOpeningBook({ storage });
+    }
+    return cloudOpeningBook;
+}
 let aiGeneration = 0;
 let activeSearchGeneration = null;
 let scheduledAiTimer = null;
@@ -2476,6 +2487,8 @@ function ensurePikafish() {
 }
 
 function cancelPendingAiJob() {
+    cloudQueryController?.abort();
+    cloudQueryController = null;
     aiGeneration++;
     activeSearchGeneration = null;
     if (scheduledAiTimer !== null) clearTimeout(scheduledAiTimer);
@@ -2499,8 +2512,23 @@ function scheduleComputerMove() {
 async function requestComputerMove(activeBoard, color, historySequence = moveSequence, generation = aiGeneration) {
     const legalMoves = filterPlayableMoves(activeBoard, color, getAllLegalMoves(activeBoard, color), positionHistory, historySequence);
     if (!legalMoves.length) return null;
-    const engine = ensurePikafish();
     const stale = () => generation !== aiGeneration;
+    if (stale()) return null;
+    // Same database used by the official Pikafish web GUI; the old book is not used.
+    if (historySequence.length < 20) {
+        const controller = new AbortController();
+        cloudQueryController = controller;
+        let bookMove;
+        try {
+            bookMove = await ensureCloudOpeningBook().getMove(boardToFen(activeBoard, color), legalMoves.map(moveToUci), { signal: controller.signal });
+        } finally {
+            if (cloudQueryController === controller) cloudQueryController = null;
+        }
+        if (stale()) return null;
+        const candidate = legalMoves.find(move => moveToUci(move) === bookMove);
+        if (candidate) return candidate;
+    }
+    const engine = ensurePikafish();
     const hash = navigator.deviceMemory && navigator.deviceMemory <= 4 ? 8 : 16;
     const skill = (AI_LEVELS[aiLevel] || AI_LEVELS[DEFAULT_AI_LEVEL]).skill;
     await window.offlinePreparation;

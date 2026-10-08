@@ -1,0 +1,36 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+assert.ok(fs.existsSync(path.join(__dirname, '../cloud-opening-book.js')), 'official cloud-book adapter must exist');
+const { CloudOpeningBook, parseBookMoves } = require('../cloud-opening-book.js');
+assert.deepEqual(parseBookMoves('move:c3c4|move:g3g4\0'), ['c3c4', 'g3g4']);
+for (const text of ['unknown', 'nobestmove', 'search:c3c4', 'egtb:c3c4', 'move:j0a1']) assert.deepEqual(parseBookMoves(text), []);
+const saved = new Map();
+const storage = { getItem: key => saved.get(key) || null, setItem: (key, value) => saved.set(key, value) };
+const fen = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1';
+(async () => {
+    const requests = [];
+    const book = new CloudOpeningBook({ storage, fetcher: async (url, options) => {
+        requests.push({ url: new URL(url), options }); return { ok: true, text: async () => 'move:c3c4|move:g3g4\0' };
+    } });
+    assert.equal(await book.getMove(fen, ['g3g4']), 'g3g4', 'only currently playable cloud moves are accepted');
+    assert.equal(requests[0].url.origin, 'https://www.chessdb.cn');
+    assert.equal(requests[0].url.pathname, '/chessdb.php');
+    assert.equal(requests[0].url.searchParams.get('action'), 'querybest');
+    assert.equal(requests[0].url.searchParams.get('learn'), '0', 'never request cloud learning or remote computation');
+    assert.equal(requests[0].options.credentials, 'omit');
+    assert.equal(await book.getMove(fen.replace('0 1', '9 12'), ['c3c4']), 'c3c4');
+    assert.equal(requests.length, 1, 'cache key uses position and side, not move counters');
+    const offline = new CloudOpeningBook({ storage, fetcher: async () => { throw new Error('offline'); } });
+    assert.equal(await offline.getMove(fen, ['g3g4']), 'g3g4', 'queried moves survive reopening without a network');
+    assert.equal(await offline.getMove(fen, ['a3a4']), null, 'forbidden/stale cached moves are not used');
+    const failed = new CloudOpeningBook({ fetcher: async () => { throw new Error('blocked'); } });
+    assert.equal(await failed.getMove(fen, ['c3c4']), null, 'network failure falls back without blocking the game');
+    const cancelled = new AbortController(); cancelled.abort();
+    assert.equal(await failed.getMove(fen, ['c3c4'], { signal: cancelled.signal }), null);
+    const slow = new CloudOpeningBook({ timeout: 20, fetcher: async (url, { signal }) => new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(new Error('timeout')))) });
+    assert.equal(await slow.getMove(fen, ['c3c4']), null, 'cloud timeouts return control to local engine');
+    const badStorage = new CloudOpeningBook({ storage: { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('full'); } }, fetcher: async () => ({ ok: true, text: async () => 'move:c3c4' }) });
+    assert.equal(await badStorage.getMove(fen, ['c3c4']), 'c3c4');
+    console.log('official cloud protocol, legal filtering, persistent offline reuse, cancellation and bounded fallback passed');
+})().catch(error => { console.error(error); process.exitCode = 1; });

@@ -13,7 +13,13 @@
 可按「對局設定」開始新的對局。網站沒有自動保存未完成的對局。
 
 所有執行資源已放在根目錄，GitHub Pages 直接從 `fix/chinese-chess-playable` 分支的根目錄發布。
-AI 在玩家裝置運算，沒有遠端 AI API、後端或 CDN 依賴。
+AI 搜尋在玩家裝置運算，不需要本站後端或 CDN。
+
+開局採用 [Pikafish 官方網頁使用的 chessdb.cn 雲庫](https://www.pikafish.com/wiki/guide/web-version.html#查询云库)。
+前 10 回合查詢已存在的走法；命中時直接走棋，不用等滿自訂思考時間。
+查過的走法會保存在本機，離線也能使用；未查過、雲庫未命中或連線失敗時，
+會由本機 Pikafish 按所選時間思考，所以自訂 30 秒仍可能等待約 30 秒。
+雲庫是額外的聯網查詢，沒有重用原網站的開局表，也不會提交遠端計算或自動學習任務。
 
 引擎使用真正 Pikafish WASM，固定 ousc 的 Pikafish-2023-03-05 發布及同版本官方 NNUE。
 Pikafish 為 GPL-3.0-or-later，對應原始碼、作者與授權隨網站提供於 `engine/`。
