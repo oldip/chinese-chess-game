@@ -4,6 +4,8 @@ const { chromium } = require('playwright');
 const base = process.env.TEST_URL || 'http://127.0.0.1:8080/chinese-chess-game/';
 const channels = (process.env.TEST_CHANNELS || 'chrome,msedge').split(',');
 const localCertificate = process.env.TEST_LOCAL_CERT === '1' && new URL(base).hostname === '127.0.0.1';
+const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
+    ? new Set(['local.adguard.org', 'gc.kis.v2.scr.kaspersky-labs.com', 'me.kis.v2.scr.kaspersky-labs.com']) : new Set();
 (async () => {
     fs.mkdirSync('test-results', { recursive: true });
     for (const channel of channels) {
@@ -11,9 +13,15 @@ const localCertificate = process.env.TEST_LOCAL_CERT === '1' && new URL(base).ho
         try {
         const context = await browser.newContext({ ignoreHTTPSErrors: localCertificate });
         const page = await context.newPage();
-        const errors = [], external = [], lines = [];
+        const errors = [], external = [], protectionRequests = [], lines = [];
         page.on('pageerror', error => errors.push(error.message));
-        context.on('request', request => { if (new URL(request.url()).origin !== new URL(base).origin && /^https?:/.test(request.url())) external.push(request.url()); });
+        context.on('request', request => {
+            const url = new URL(request.url());
+            if (url.origin !== new URL(base).origin && /^https?:/.test(url.protocol)) {
+                if (protectionHosts.has(url.hostname)) protectionRequests.push(url.origin);
+                else external.push(request.url());
+            }
+        });
         await page.goto(base, { waitUntil: 'domcontentloaded' });
         assert.equal(await page.locator('.cell').count(), 90);
         await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready, null, { timeout: 120000 });
@@ -118,7 +126,7 @@ const localCertificate = process.env.TEST_LOCAL_CERT === '1' && new URL(base).ho
         assert.equal(await page.locator('#custom-time').isDisabled(), true);
         assert.deepEqual(errors, []);
         assert.deepEqual(external, []);
-        fs.writeFileSync(`test-results/${channel}.json`, JSON.stringify({ channel, version: browser.version(), result, errors, external, offline: true }, null, 2));
+        fs.writeFileSync(`test-results/${channel}.json`, JSON.stringify({ url: base, channel, version: browser.version(), result, errors, external, protectionRequests, offline: true }, null, 2));
         console.log(`${channel} ${browser.version()}: automatic preparation, custom time, 8 real engine plies, UI play/undo/sides/cancel/responsiveness/bfcache, subpath + offline replay/eviction/automatic recovery passed`);
         } finally { await browser.close(); }
     }

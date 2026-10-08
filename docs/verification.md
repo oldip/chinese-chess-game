@@ -14,10 +14,11 @@
 | UI 可回應 | AI 思考期間頁面 10ms interval，在 150ms 內仍有至少 5 次執行；通過，不是 FPS/性能基準 |
 | 頁面生命週期 | 模擬 persisted pagehide/pageshow，取消 Worker 後恢復 AI 回合；通過。未單獨證明瀏覽器實際採用了 BFCache |
 | Pages 形式子路徑 | `/chinese-chess-game/` 本機 HTTPS 下 Worker、WASM、NNUE、icons、manifest、SW 全部可取得 |
+| 公開 GitHub Pages | `d3ad1b7` 發布狀態 built，公開 precache 版本與提交一致；https://oldip.github.io/chinese-chess-game/ 的 Chrome／Edge 完整 browser suite 通過，含自動準備、對弈、離線重開及自動補回 NNUE |
 | 完全離線 | Playwright `context.setOffline(true)` 後重新載入頁面，重新建立 Worker／載入 NNUE並完成玩家/AI 回合；Chrome/Edge 通過 |
 | 首次準備／簡潔設定 | 不點任何按鈕即可完成全資源快取及真實引擎初始化；準備完成後隱藏載入提示；初／中／高級與自訂秒數控制通過 |
 | 快取遺失／修復 | 離線刪除 NNUE cache → reload 撤銷 ready → 初始化失敗 → 恢復網絡自動補回 → 再斷網 reload 並完成自訂時間對弈；兩瀏覽器通過 |
-| 無 AI server | 上述正常流程追蹤 browser context HTTP/S requests，沒有本站來源以外的請求；pageerror 清單為空 |
+| 無 AI server | 本機 HTTPS 正常流程沒有本站來源以外的請求。公開網站測試另記錄本機防護軟體注入請求，網站本身 external 與 pageerror 清單為空 |
 | 靜態發布檔 | 20 個快取資源；約 19.34 MB；根目錄可直接發布，含原始碼與授權；無舊 handcrafted Worker/engine-core runtime 依賴 |
 | Git byte 保護 | `.gitattributes` 對 engine/* 禁止換行轉換，避免 Windows checkout 使 vendor SHA-256 改變 |
 
@@ -26,6 +27,11 @@
 安裝完整快取通過。另以可重現的快取測試驗證修改過的 HTML 可以離線取回；JS/WASM/NNUE
 完整性檢查仍保留。完整 Chrome／Edge 對弈測試使用本機自簽 HTTPS，憑證 bypass 僅限 loopback。
 Edge 曾有一次首次 HTTPS 導航逾時，獨立重跑完整流程通過。
+公開 HTTPS 也被本機 Kaspersky／AdGuard 注入腳本，初次網絡斷言因此失敗；
+確認其來源後以 `TEST_ALLOW_PROTECTION_INJECTION=1` 另記錄三個實際觀察到的主機
+`local.adguard.org`、`gc.kis.v2.scr.kaspersky-labs.com`、`me.kis.v2.scr.kaspersky-labs.com`。
+其他外部 HTTP/S 請求仍直接使測試失敗；未停用防護軟體或移除頁面注入腳本。
+Chrome／Edge 在這個實際環境下均完成公開站離線對弈及恢復測試。
 
 ## 已修正的重現問題
 
@@ -43,7 +49,7 @@ Edge 曾有一次首次 HTTPS 導航逾時，獨立重跑完整流程通過。
 
 ## 尚未實測／限制
 
-- 本紀錄的自動對弈測試使用本機靜態網站；GitHub API 已確認 Pages 從 `fix/chinese-chess-playable` 根目錄發布，無需 Actions 建置。
+- GitHub API 已確認 Pages 從 `fix/chinese-chess-playable` 根目錄發布，無需 Actions 建置；本機與公開網站已驗收。
 - 標準 Firefox 與 Android Chrome 真機、PWA 系統安裝操作、低記憶體裝置效能。
 - 多版本公開部署的等待更新流程未做端到端部署測試；程式使用完整版本隔離，沒有 skipWaiting。
 - 若線上已有新版且被清除的舊版資源已改變，不能混用版本；關閉本網站全部分頁後再開啟會啟用下載好的新版。
