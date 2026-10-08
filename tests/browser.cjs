@@ -9,7 +9,7 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
 (async () => {
     fs.mkdirSync('test-results', { recursive: true });
     for (const channel of channels) {
-        const browser = await chromium.launch({ channel, headless: true, args: localCertificate ? ['--ignore-certificate-errors'] : [] });
+        const browser = await chromium.launch({ channel, headless: true, args: [...(localCertificate ? ['--ignore-certificate-errors'] : []), ...(process.env.TEST_HOST_RESOLVER_RULES ? ['--host-resolver-rules=' + process.env.TEST_HOST_RESOLVER_RULES] : [])] });
         try {
         const context = await browser.newContext({ ignoreHTTPSErrors: localCertificate });
         const page = await context.newPage();
@@ -24,7 +24,8 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
                 else external.push(request.url());
             }
         });
-        await page.goto(base, { waitUntil: 'domcontentloaded' });
+        await page.goto(base, { waitUntil: 'commit' });
+        await page.locator('.cell').last().waitFor({ state: 'attached' });
         assert.equal(await page.locator('.cell').count(), 90);
         await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready, null, { timeout: 120000 });
         assert.equal(await page.locator('#engine-status').isVisible(), false, 'opponent automatically prepares on first visit');
@@ -36,9 +37,10 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
         assert.equal(await page.evaluate(() => getSearchTimeBudget(board, [])), 1000);
         await page.screenshot({ path: `test-results/${channel}-settings.png`, fullPage: true });
         const bookTimings = [];
-        for (const offline of [false, true]) {
+        for (const offline of [true, false]) {
+            await context.setOffline(offline);
             if (offline) {
-                await context.setOffline(true);
+                await page.evaluate(() => localStorage.clear());
                 await page.reload({ waitUntil: 'domcontentloaded' });
                 await page.waitForFunction(() => document.querySelector('#offline-status').dataset.ready === 'true' && pikafishEngine?.ready);
             }
@@ -60,7 +62,7 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
                     await page.click('[data-row="5"][data-col="2"]');
                 }
                 await page.waitForFunction(expected => moveSequence.length === expected && !aiThinking, side === 'b' ? 1 : 2, { timeout: 6000 });
-                assert.equal(await page.evaluate(() => window.engineSearchCalls), 0, '30-second openings use official cloud/cache without searching');
+                assert.equal(await page.evaluate(() => window.engineSearchCalls), 0, '30-second openings use bundled official data without searching');
                 const elapsed = Date.now() - started;
                 assert.ok(elapsed < 6000, 'book must not wait 30 seconds');
                 bookTimings.push({ offline, aiSide: side === 'b' ? 'red' : 'black', elapsed });
@@ -68,7 +70,7 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
             await page.evaluate(() => openSetupPanel());
         }
         await context.setOffline(false);
-        assert.ok(cloudRequests.length >= 2, 'both side openings queried the real official cloud database');
+        assert.equal(cloudRequests.length, 0, 'never-queried openings work offline without external cloud requests');
         // Remaining checks deliberately exercise the actual local WASM path.
         await page.evaluate(() => { cloudOpeningBook.getMove = async () => null; setHumanSide('r'); });
         const result = await page.evaluate(async () => {
@@ -166,7 +168,7 @@ const protectionHosts = process.env.TEST_ALLOW_PROTECTION_INJECTION === '1'
         assert.deepEqual(errors, []);
         assert.deepEqual(external, []);
         fs.writeFileSync(`test-results/${channel}.json`, JSON.stringify({ url: base, channel, version: browser.version(), result, bookTimings, cloudRequests, errors, external, protectionRequests, offline: true }, null, 2));
-        console.log(`${channel} ${browser.version()}: official 30-second opening fast path/cache for both sides, automatic preparation, custom time, 8 real engine plies, UI play/undo/sides/cancel/responsiveness/bfcache, subpath + offline replay/eviction/automatic recovery passed`);
+        console.log(`${channel} ${browser.version()}: bundled never-queried offline 30-second openings for both sides, automatic preparation, custom time, 8 real engine plies, UI play/undo/sides/cancel/responsiveness/bfcache, subpath + offline replay/eviction/automatic recovery passed`);
         } finally { await browser.close(); }
     }
 })().catch(error => { console.error(error); process.exit(1); });

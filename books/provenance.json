@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "version": "2026-10-08",
+  "source": "https://www.chessdb.cn/chessdb.php",
+  "sourceProject": "https://github.com/noobpwnftw/chessdb",
+  "upstreamLicenseCommit": "ab6c33133dba40e46a6f9828696c959fb4940221",
+  "license": "Public domain unless otherwise specified by upstream; see LICENSE.txt",
+  "query": {
+    "action": "querypv",
+    "learn": "0",
+    "stable": "1",
+    "json": "1"
+  },
+  "selection": "Bounded early legal deviations; legal cloud PV prefix through ply 20; left-right mirrored equivalents; no popularity ranking claimed",
+  "queries": 1200,
+  "positions": 31004,
+  "bytes": 2350733,
+  "sha256": "e7096c78188101372fe3dec8f2fabe78b2f945771b55c190729badb3f084f8f2",
+  "failures": 0,
+  "responseArchive": "chessdb-responses.jsonl.gz",
+  "responseArchiveSha256": "175a5133804fb0d0fee52fc825fa3209ad842b7f2036a53723085dac588c5b0f"
+}

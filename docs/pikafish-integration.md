@@ -47,7 +47,10 @@ performMove. Preserve UI, local mode and existing undo limits. Use preset thinki
 times of 500/1500/4000 ms and custom 0.5–30 seconds. Keep engine details out of the
 player UI; prepare automatically on first visit and display simple offline progress.
 
-During the first 20 ply, cloud-opening-book.js queries querybest with learn=0,
+During the first 20 ply, cloud-opening-book.js first checks the bundled
+chessdb.cn opening subset. It is loaded as a same-site static script and included
+in the full versioned offline inventory, so never-queried positions work offline.
+On a bundled miss, the adapter queries querybest with learn=0,
 checks returned moves against the same root filter and caches individual responses
 in localStorage. A hit bypasses timed search; misses, invalid moves, offline cache
 misses and a 2.5-second timeout use the unchanged full-history local search.

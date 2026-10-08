@@ -1,10 +1,10 @@
 {
-  "version": "pikafish-afd50655a5c24289",
+  "version": "pikafish-beca8d5bec63b16d",
   "files": [
     {
       "path": "index.html",
-      "bytes": 5657,
-      "sha256": "2872294c52468cd649660e0627894e01fc465dbc23aded0a7835f61cffc84bf9"
+      "bytes": 5710,
+      "sha256": "92ff541ec60d5799b2257f3fc4ca3e47a5c969acfd7c12ecff80e1ff360173d9"
     },
     {
       "path": "styles.css",
@@ -18,8 +18,8 @@
     },
     {
       "path": "cloud-opening-book.js",
-      "bytes": 2826,
-      "sha256": "94e0d4615e698bb108f4c7d5af20901940a9820f73c78f22b87f1b264e335db3"
+      "bytes": 3070,
+      "sha256": "f5d908c95c28ae61e4ad23d70d7fac604018add38acc5fde972a89154ec15e46"
     },
     {
       "path": "pikafish-adapter.js",
@@ -40,6 +40,31 @@
       "path": "manifest.webmanifest",
       "bytes": 445,
       "sha256": "12425ee1ce807e385d7a103aa9671f53d5059c561148d369da6d2fe14f7673d6"
+    },
+    {
+      "path": "books/chessdb-opening.js",
+      "bytes": 2350733,
+      "sha256": "e7096c78188101372fe3dec8f2fabe78b2f945771b55c190729badb3f084f8f2"
+    },
+    {
+      "path": "books/chessdb-responses.jsonl.gz",
+      "bytes": 69116,
+      "sha256": "175a5133804fb0d0fee52fc825fa3209ad842b7f2036a53723085dac588c5b0f"
+    },
+    {
+      "path": "books/LICENSE.txt",
+      "bytes": 1211,
+      "sha256": "6b0382b16279f26ff69014300541967a356a666eb0b91b422f6862f6b7dad17e"
+    },
+    {
+      "path": "books/provenance.json",
+      "bytes": 863,
+      "sha256": "0ae95c8ad9721788f3d0684b21bdfcd1742a9c051d8650d77c1d3eca6fda7bfe"
+    },
+    {
+      "path": "books/upstream-README.md",
+      "bytes": 4242,
+      "sha256": "ba742a27f1ab0e2fd5a367ade70e72cd541eddc974ebcebd0aae26ae67312fbe"
     },
     {
       "path": "icons/chess-192.png",

@@ -1,0 +1,15 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+assert.ok(fs.existsSync(require('node:path').join(__dirname, '../scripts/download-opening-book.cjs')), 'cloud opening exporter must exist');
+const { addLine } = require('../scripts/download-opening-book.cjs');
+const { initialBoard } = require('../game.js');
+const { boardToFen } = require('../pikafish-adapter.js');
+const moves = {};
+const result = addLine(moves, { board: initialBoard, color: 'r', ply: 0 }, ['h2e2', 'b9c7', 'a0a9']);
+assert.equal(result.length, 2, 'only the legal prefix of a cloud line is exported');
+assert.ok(moves[boardToFen(initialBoard, 'r').split(' ').slice(0, 2).join(' ')].includes('h2e2'));
+assert.ok(moves[boardToFen(initialBoard, 'r').split(' ').slice(0, 2).join(' ')].includes('b2e2'), 'left-right equivalent lines are included');
+const nearLimit = {};
+assert.equal(addLine(nearLimit, { board: initialBoard, color: 'r', ply: 19 }, ['h2e2', 'b9c7']).length, 1, 'only first 20 ply are retained');
+assert.deepEqual(addLine({}, { board: initialBoard, color: 'r', ply: 0 }, ['j0j1']), [], 'invalid UCI is rejected');
+console.log('cloud PV legal-prefix, mirrored coordinates and opening depth limits passed');

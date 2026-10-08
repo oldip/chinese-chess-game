@@ -8,16 +8,19 @@
     }
 
     class CloudOpeningBook {
-        constructor({ fetcher = root.fetch.bind(root), storage = null, timeout = 2500 } = {}) {
+        constructor({ fetcher = root.fetch.bind(root), storage = null, timeout = 2500, openingMoves = root.CHESSDB_OPENINGS || {} } = {}) {
             this.fetcher = fetcher;
             this.storage = storage;
             this.timeout = timeout;
             this.cache = new Map();
+            this.openingMoves = openingMoves;
         }
 
         async getMove(fen, playableMoves, { signal } = {}) {
             if (signal?.aborted) return null;
             const position = fen.trim().split(/\s+/).slice(0, 2).join(' ');
+            const bundledMove = this.openingMoves[position]?.find(move => playableMoves.includes(move));
+            if (bundledMove) return bundledMove;
             const key = `chinese-chess-cdb-v1:${position}`;
             if (!this.cache.has(position)) {
                 try {

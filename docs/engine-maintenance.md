@@ -65,7 +65,26 @@ API 行為依 [雲庫公開文件](https://www.chessdb.cn/cloudbook_api.html)。
 只接受 `move:` 回應，並經既有合法走法與長將／長捉過濾。`search:`、未命中、無效回應或失敗
 均回退本機搜尋；沒有呼叫 `queue`／`store` 或自動學習。取消對局會中止查詢，世代檢查隔離舊回應。
 
-查得走法按局面與行棋方保存在 localStorage 的 `chinese-chess-cdb-v1:` key；
-離線只可直接使用曾查過的局面，其他局面仍由本機引擎思考。網站資料被清除時此快取亦會消失。
-未打包、爬取或重新授權整份雲庫；只快取個別查詢回應，服務內容與可用性由 chessdb.cn 管理。
+本站離線包優先於雲庫查詢；包外查得走法按局面與行棋方保存在 localStorage 的 `chinese-chess-cdb-v1:` key；
+離線可直接使用本站包及曾查過的局面，其他局面仍由本機引擎思考。網站資料被清除時需連線補回。
+沒有下載整份約 500 GB 雲庫快照；本站只附有限開局分支，雲庫服務內容與可用性由 chessdb.cn 管理。
 雲庫沒有固定發布版本；本站固定的是查詢協定與快取格式，原 WASM／NNUE 版本及 hash 不變。
+
+## 本站開局離線包（2026-10-08）
+
+- `books/chessdb-opening.js`：31,004 個局面，2,350,733 bytes；SHA-256
+  `e7096c78188101372fe3dec8f2fabe78b2f945771b55c190729badb3f084f8f2`。
+- 取自 1,200 次 `querypv&learn=0&stable=1&json=1` 的雲庫回應，僅保存現有棋盤規則接受的主變前綴，
+  每條限制在前 20 ply。探索早期合法分支，再補入左右鏡像；沒有使用原 handcrafted 開局表。
+- 開局樹是有限分支抽樣，沒有官方人氣統計；不能聲稱每種首步之後 10 回合都一定命中。
+- 原始回應壓縮保存於 `books/chessdb-responses.jsonl.gz`，來源、抓取時間及全部 hash 見 `books/provenance.json`。
+- 雲庫作者的 README 說明資料庫快照除另有註明外按公有領域發布。來源版
+  `ab6c33133dba40e46a6f9828696c959fb4940221` 的 README／Unlicense 原文附於 `books/`；
+  這項資料聲明與 Pikafish／NNUE 的獨立授權分開記錄。
+- `scripts/download-opening-book.cjs` 是維護者工具，最多兩個並行查詢、1,200 次／3 MB 上限，
+  不呼叫 queue/store 或學習。更新需重跑全走法來源／合法性測試及快取清單產生。
+  `CHESSDB_ADDRESS` 僅供維護時 DNS 故障的位址替代，HTTPS 主機名稱與憑證驗證保留；
+  玩家網站沒有硬編 IP 或 DNS 設定。
+
+首次快取包含開局資料及來源／授權，全部靜態資源合計 21,770,579 bytes。
+引擎與 NNUE 二進位檔未修改；正常對弈仍重用既有 Worker。
