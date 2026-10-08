@@ -501,7 +501,7 @@ function getUndoSummaryText(limit = remainingUndos, baseLimit = getUndoLimit(), 
 }
 
 function canUndoMove() {
-    if (setupOpen || aiThinking || moveHistory.length === 0) {
+    if (reviewOpen || setupOpen || aiThinking || moveHistory.length === 0) {
         return false;
     }
 
@@ -2470,10 +2470,17 @@ let aiGeneration = 0;
 let activeSearchGeneration = null;
 let scheduledAiTimer = null;
 let engineGameGeneration = -1;
+let reviewOpen = false;
+let reviewSession = null;
+let reviewIndex = 0;
+let reviewVersion = 0;
+let reviewRunning = false;
+let reviewTask = Promise.resolve();
 let evaluationVersion = 0;
 let evaluationTask = Promise.resolve();
 
 function refreshPositionEvaluation() {
+    if (reviewOpen) return evaluationTask;
     if (typeof document === 'undefined') return Promise.resolve();
     const element = document.getElementById('position-evaluation');
     if (!element) return Promise.resolve();
@@ -2531,6 +2538,8 @@ function ensurePikafish() {
 }
 
 function cancelPendingAiJob() {
+    reviewVersion++;
+    reviewRunning = false;
     evaluationVersion++;
     cloudQueryController?.abort();
     cloudQueryController = null;
@@ -2818,6 +2827,8 @@ function createBoard() {
 
     const boardElement = document.getElementById('board');
     boardElement.classList.toggle('flipped', humanColor === BLACK_COLOR);
+    const displayBoard = reviewOpen ? reviewSession.boards[reviewIndex] : board;
+    const displayLastMove = reviewOpen ? reviewSession.moves[reviewIndex - 1] : lastMove;
     boardElement.innerHTML = BOARD_SVG;
     const gridElement = boardElement.querySelector('.board-grid');
 
@@ -2831,9 +2842,9 @@ function createBoard() {
             if (selectedCell && selectedCell.row === row && selectedCell.col === col) {
                 cell.classList.add('selected');
             }
-            if (lastMove && (
-                (lastMove.fromRow === row && lastMove.fromCol === col) ||
-                (lastMove.toRow === row && lastMove.toCol === col)
+            if (displayLastMove && (
+                (displayLastMove.fromRow === row && displayLastMove.fromCol === col) ||
+                (displayLastMove.toRow === row && displayLastMove.toCol === col)
             )) {
                 cell.classList.add('last-move');
             }
@@ -2843,7 +2854,7 @@ function createBoard() {
                 cell.classList.add(matchingMove.captured ? 'capture-move' : 'empty-move');
             }
 
-            const piece = board[row][col];
+            const piece = displayBoard[row][col];
             if (piece) {
                 const pieceElement = document.createElement('div');
                 pieceElement.className = `piece ${piece[0] === 'r' ? 'red' : 'black'}`;
@@ -2905,6 +2916,7 @@ function renderMoveLog() {
     }
 
     refreshPositionEvaluation();
+    updateReviewControls();
     const moveLogElement = document.getElementById('move-log');
     if (!moveLogElement) {
         return;
@@ -2915,6 +2927,7 @@ function renderMoveLog() {
         return;
     }
 
+    const scrollTop = moveLogElement.scrollTop;
     moveLogElement.innerHTML = '';
 
     moveLog.forEach((entry, index) => {
@@ -2933,13 +2946,168 @@ function renderMoveLog() {
         blackElement.className = `move-entry${entry.black ? '' : ' empty'}`;
         blackElement.textContent = entry.black || '--';
 
+        if (reviewOpen) {
+            [redElement, blackElement].forEach((element, offset) => {
+                const ply = index * 2 + offset + 1;
+                if (ply > reviewSession.moves.length) return;
+                const result = reviewSession.results[ply - 1];
+                element.classList.add('review-entry');
+                element.classList.toggle('review-selected', reviewIndex === ply);
+                element.tabIndex = 0;
+                element.setAttribute('role', 'button');
+                element.setAttribute('aria-label', `第 ${ply} 步 ${element.textContent}`);
+                const badge = document.createElement('span');
+                badge.className = 'review-grade';
+                badge.textContent = result?.grade.label || '待分析';
+                element.appendChild(badge);
+                element.addEventListener('click', () => goToReview(ply));
+                element.addEventListener('keydown', event => {
+                    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); goToReview(ply); }
+                });
+            });
+        }
         rowElement.appendChild(indexElement);
         rowElement.appendChild(redElement);
         rowElement.appendChild(blackElement);
         moveLogElement.appendChild(rowElement);
     });
 
-    moveLogElement.scrollTop = moveLogElement.scrollHeight;
+    moveLogElement.scrollTop = reviewOpen ? scrollTop : moveLogElement.scrollHeight;
+}
+
+function canReviewGame() {
+    return !setupOpen && !gameActive && moveSequence.length > 0;
+}
+
+function startReview() {
+    if (!canReviewGame() || reviewOpen) return;
+    cancelPendingAiJob();
+    clearSelection();
+    pendingAnimatedMove = null;
+    if (!reviewSession) {
+        const keys = cloneMoveSequence(moveSequence), boards = [cloneBoard(initialBoard)], moves = [];
+        for (const key of keys) {
+            const coordinates = parseMoveKey(key);
+            const move = createMove(boards.at(-1), coordinates.fromRow, coordinates.fromCol, coordinates.toRow, coordinates.toCol);
+            moves.push(move);
+            boards.push(applyMoveToBoard(boards.at(-1), move));
+        }
+        reviewSession = { keys, boards, moves, results: [] };
+    }
+    reviewOpen = true;
+    goToReview(0);
+    runReviewAnalysis();
+}
+
+function leaveReview() {
+    if (!reviewOpen) return;
+    cancelPendingAiJob();
+    reviewOpen = false;
+    createBoard();
+    renderMoveLog();
+    updateStatus();
+}
+
+function goToReview(index) {
+    if (!reviewOpen) return;
+    reviewIndex = Math.max(0, Math.min(reviewSession.moves.length, index));
+    createBoard();
+    renderMoveLog();
+}
+
+function stopReviewAnalysis() {
+    if (!reviewOpen) return;
+    cancelPendingAiJob();
+    updateReviewControls();
+}
+
+function updateReviewControls() {
+    if (typeof document === 'undefined') return;
+    const button = document.getElementById('review-button');
+    if (!button) return;
+    button.hidden = reviewOpen || !canReviewGame();
+    document.getElementById('review-panel').hidden = !reviewOpen;
+    if (!reviewOpen) return;
+    const total = reviewSession.moves.length, done = reviewSession.results.filter(Boolean).length;
+    document.getElementById('review-progress').textContent = reviewRunning
+        ? `正在分析 ${done}/${total} 步…` : done === total ? `已分析 ${total} 步` : `分析已停止：${done}/${total} 步`;
+    document.getElementById('review-stop').hidden = !reviewRunning;
+    document.getElementById('review-resume').hidden = reviewRunning || done === total;
+    document.getElementById('review-prev').disabled = reviewIndex === 0;
+    document.getElementById('review-next').disabled = reviewIndex === total;
+    const result = reviewIndex ? reviewSession.results[reviewIndex - 1] : reviewSession.results[0];
+    const score = reviewIndex ? result?.played?.score : result?.best?.score;
+    const mover = reviewIndex ? (reviewIndex % 2 ? RED_COLOR : BLACK_COLOR) : RED_COLOR;
+    const element = document.getElementById('position-evaluation');
+    element.dataset.side = humanColor === RED_COLOR ? 'red' : 'black';
+    const value = score && (mover === humanColor ? score.value : -score.value);
+    element.textContent = !score ? '局勢評分：待分析' : score.type === 'mate'
+        ? `局勢評分：${colorName(value > 0 ? humanColor : otherColor(humanColor))}將殺（${Math.abs(value)}）`
+        : `局勢評分：${colorName(humanColor)} ${value >= 0 ? '+' : ''}${(value / 100).toFixed(2)}`;
+    document.getElementById('review-step').textContent = reviewIndex ? `第 ${reviewIndex}/${total} 步 · ${result?.grade.label || '待分析'}` : '初始局面';
+    document.getElementById('review-reason').textContent = reviewSession.error || (reviewIndex ? result?.grade.reason || '此步尚未分析。' : '點選棋譜或使用前後按鈕重看每一步。');
+    const suggestion = result?.best?.move;
+    const before = reviewSession.boards[Math.max(0, reviewIndex - 1)];
+    const move = suggestion && createMove(before, suggestion.fromRow, suggestion.fromCol, suggestion.toRow, suggestion.toCol);
+    document.getElementById('review-best').textContent = move ? `建議走法：${formatMoveNotation(before, move)}` : '建議走法：—';
+    updateUndoButton();
+}
+
+function isReviewSacrifice(before, move, pv) {
+    if (pv.length < 3 || PIECE_VALUES[move.piece[1]] - (move.captured ? PIECE_VALUES[move.captured[1]] : 0) < 250) return false;
+    const reply = uciToMove(pv[1]);
+    if (!reply || reply.toRow !== move.toRow || reply.toCol !== move.toCol) return false;
+    let position = before, side = move.piece[0];
+    for (const uci of pv.slice(0, 3)) {
+        const coordinates = uciToMove(uci);
+        const candidate = coordinates && getAllLegalMoves(position, side).find(legal => sameMove(legal, coordinates));
+        if (!candidate) return false;
+        position = applyMoveToBoard(position, candidate);
+        side = otherColor(side);
+    }
+    const balance = activeBoard => activeBoard.flat().reduce((total, piece) =>
+        total + (piece ? PIECE_VALUES[piece[1]] * (piece[0] === move.piece[0] ? 1 : -1) : 0), 0);
+    return balance(before) - balance(position) >= 250;
+}
+
+function runReviewAnalysis() {
+    if (!reviewOpen || reviewRunning) return reviewTask;
+    const session = reviewSession, version = ++reviewVersion;
+    const current = () => reviewOpen && reviewSession === session && version === reviewVersion;
+    reviewRunning = true;
+    session.error = null;
+    updateReviewControls();
+    reviewTask = reviewTask.catch(() => {}).then(async () => {
+        await evaluationTask;
+        await window.offlinePreparation;
+        if (!current()) return;
+        const engine = ensurePikafish();
+        await engine.init();
+        if (!current()) return;
+        await engine.configure({ skill: 20, hash: navigator.deviceMemory && navigator.deviceMemory <= 4 ? 8 : 16 });
+        if (!current()) return;
+        const fen = boardToFen(initialBoard, RED_COLOR);
+        for (let index = 0; index < session.moves.length; index++) {
+            if (!current()) return;
+            if (session.results[index]) continue;
+            const before = session.boards[index], side = index % 2 ? BLACK_COLOR : RED_COLOR;
+            const history = session.keys.slice(0, index);
+            const positions = session.boards.slice(0, index + 1).map((position, ply) => getBoardKey(position, ply % 2 ? BLACK_COLOR : RED_COLOR));
+            const legal = filterPlayableMoves(before, side, getAllLegalMoves(before, side), positions, history).map(moveToUci);
+            const result = await GameReview.analyseMove(engine, { fen, history: history.map(key => moveToUci(parseMoveKey(key))),
+                played: moveToUci(session.moves[index]), legal, current });
+            if (!current() || !result) return;
+            result.grade = GameReview.classifyMove({ best: result.best.score, played: result.played.score, same: result.same,
+                sacrifice: isReviewSacrifice(before, session.moves[index], result.best.pv), depth: result.best.depth });
+            session.results[index] = result;
+            renderMoveLog();
+        }
+    }).catch(error => {
+        if (!current()) return;
+        console.warn('Review analysis:', error);
+        session.error = '分析暫時無法完成；請按繼續分析重試。';
+    }).finally(() => { if (current()) { reviewRunning = false; updateReviewControls(); } });
+    return reviewTask;
 }
 
 function clearSelection() {
@@ -2969,6 +3137,7 @@ function snapshotState() {
 }
 
 function restoreState(snapshot) {
+    reviewSession = null;
     cancelPendingAiJob();
     cancelPendingPonderJob();
     board = cloneBoard(snapshot.board);
@@ -3069,6 +3238,7 @@ function finalizeMove() {
 }
 
 function performMove(move) {
+    reviewSession = null;
     if (hasComputerOpponent() && currentPlayer === humanColor) {
         cancelPendingPonderJob(false);
     }
@@ -3086,7 +3256,7 @@ function performMove(move) {
 }
 
 function handleCellClick(row, col) {
-    if (!gameActive || aiThinking || !isHumanControlled(currentPlayer)) {
+    if (reviewOpen || !gameActive || aiThinking || !isHumanControlled(currentPlayer)) {
         return;
     }
 
@@ -3146,6 +3316,7 @@ async function computerMove() {
 }
 
 function openSetupPanel() {
+    leaveReview();
     cancelPendingAiJob();
     cancelPendingPonderJob();
     aiThinking = false;
@@ -3264,6 +3435,8 @@ function setCustomThinkTime(seconds) {
 }
 
 function resetGame() {
+    leaveReview();
+    reviewSession = null;
     if (hasComputerOpponent() && !AI_LEVELS[aiLevel]) {
         setupOpen = true;
         gameActive = false;
@@ -3335,7 +3508,8 @@ if (typeof window !== 'undefined') {
     });
     window.addEventListener('pageshow', event => {
         if (event.persisted) {
-            refreshPositionEvaluation();
+            if (reviewOpen) updateReviewControls();
+            else refreshPositionEvaluation();
             prepareComputer();
         }
     });
@@ -3343,6 +3517,11 @@ if (typeof window !== 'undefined') {
     window.startConfiguredGame = startConfiguredGame;
     window.resetGame = resetGame;
     window.undoMove = undoMove;
+    window.startReview = startReview;
+    window.leaveReview = leaveReview;
+    window.goToReview = goToReview;
+    window.stopReviewAnalysis = stopReviewAnalysis;
+    window.runReviewAnalysis = runReviewAnalysis;
     window.setGameMode = setGameMode;
     window.setHumanSide = setHumanSide;
     window.setAiLevel = setAiLevel;

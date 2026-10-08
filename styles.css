@@ -588,3 +588,13 @@ button:hover {
     border-radius: 6px;
     font: inherit;
 }
+
+.review-panel { margin-bottom: 16px; padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.56); line-height: 1.6; }
+.review-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.review-panel button { padding: 8px 12px; font-size: 14px; }
+.review-panel small { display: block; margin-top: 8px; color: #78716c; }
+.review-entry { cursor: pointer; border-radius: 6px; white-space: normal; }
+.review-entry:hover, .review-entry:focus-visible, .review-selected { background: #fde68a; }
+.review-grade { display: block; font-size: 12px; color: #9a3412; }
+
+#review-button[hidden], #review-panel[hidden], #review-stop[hidden], #review-resume[hidden] { display: none; }

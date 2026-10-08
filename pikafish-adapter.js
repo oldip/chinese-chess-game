@@ -78,6 +78,7 @@
             this.ready = false;
             this.searching = false;
             this.scoreListener = null;
+            this.analysisListener = null;
             this.generation = 0;
         }
 
@@ -95,7 +96,12 @@
             if (data.type === 'line') {
                 this.onLine(data.line);
                 const score = parseSearchScore(data.line);
-                if (score && this.searching) this.scoreListener?.(score);
+                if (score && this.searching) {
+                    this.scoreListener?.(score);
+                    const depth = Number(/\bdepth (\d+)/.exec(data.line)?.[1] || 0);
+                    const pv = /\bpv (.*)/.exec(data.line)?.[1].trim().split(/\s+/) || [];
+                    this.analysisListener?.({ score, depth, pv });
+                }
                 const option = /^option name (.+) type (\w+).*?(?: min (\d+) max (\d+))?$/.exec(data.line);
                 if (option) this.options.set(option[1], { type: option[2], min: Number(option[3]), max: Number(option[4]) });
             }
@@ -115,6 +121,7 @@
             this.ready = false;
             this.searching = false;
             this.scoreListener = null;
+            this.analysisListener = null;
             this.initializing = null;
             for (const waiter of this.waiters) {
                 clearTimeout(waiter.timer);
@@ -193,7 +200,7 @@
             await this.handshake('isready', 'readyok');
         }
 
-        async getBestMove({ movetime = 1000, depth = 0, searchmoves = [], onScore = null } = {}) {
+        async getBestMove({ movetime = 1000, depth = 0, searchmoves = [], onScore = null, onInfo = null } = {}) {
             const generation = this.generation;
             if (!Number.isInteger(movetime) || movetime < 1 || movetime > 30000 ||
                 !Number.isInteger(depth) || depth < 0 || depth > 64) throw new Error('Invalid search limits');
@@ -203,14 +210,21 @@
             if (this.searching) throw new Error('Search already running');
             this.searching = true;
             this.scoreListener = onScore;
+            this.analysisListener = onInfo;
             const worker = this.worker;
             try {
                 const result = this.waitFor(data => data.type === 'line' && /^bestmove /.test(data.line), movetime + 15000);
                 this.command(`go movetime ${movetime}${depth ? ` depth ${depth}` : ''}${searchmoves.length ? ` searchmoves ${searchmoves.join(' ')}` : ''}`);
                 return uciToMove((await result).line.split(/\s+/)[1]);
             } finally {
-                if (this.worker === worker) { this.searching = false; this.scoreListener = null; }
+                if (this.worker === worker) { this.searching = false; this.scoreListener = null; this.analysisListener = null; }
             }
+        }
+
+        async getAnalysis(options = {}) {
+            let info = { score: null, depth: 0, pv: [] };
+            const move = await this.getBestMove({ ...options, onInfo: next => { info = next; } });
+            return { move, ...info };
         }
 
         async getEvaluation({ movetime = 150, onScore = null } = {}) {

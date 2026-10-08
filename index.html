@@ -69,6 +69,7 @@
                 </div>
                 <div id="board" class="board" aria-label="Xiangqi board"></div>
                 <div class="action-row">
+                    <button id="review-button" type="button" class="secondary-button" onclick="startReview()" hidden>復盤</button>
                     <button id="undo-button" type="button" class="secondary-button" onclick="undoMove()">&#24724;&#26827;</button>
                     <button type="button" class="secondary-button" onclick="openSetupPanel()">&#23565;&#23616;&#35373;&#23450;</button>
                     <button type="button" onclick="resetGame()">&#37325;&#26032;&#38283;&#22987;</button>
@@ -77,6 +78,20 @@
             <aside class="history-panel" aria-label="Move log">
                 <h2 class="history-title">&#26827;&#35676;</h2>
                 <div id="position-evaluation" class="position-evaluation" aria-live="polite" title="正值代表你方佔優，負值代表你方落後；短時間分析估值，並非勝率。">局勢評分：—</div>
+                <div id="review-panel" class="review-panel" hidden>
+                    <div id="review-progress" aria-live="polite"></div>
+                    <div class="review-actions">
+                        <button id="review-prev" type="button" onclick="goToReview(reviewIndex - 1)">上一步</button>
+                        <button id="review-next" type="button" onclick="goToReview(reviewIndex + 1)">下一步</button>
+                        <button type="button" onclick="leaveReview()">退出復盤</button>
+                    </div>
+                    <div id="review-step"></div>
+                    <div id="review-best"></div>
+                    <div id="review-reason"></div>
+                    <button id="review-stop" type="button" onclick="stopReviewAnalysis()">停止分析</button>
+                    <button id="review-resume" type="button" onclick="runReviewAnalysis()" hidden>繼續分析</button>
+                    <small>短時間引擎分析；評級採本站規則，並非勝率或人工定論。</small>
+                </div>
                 <div id="move-log" class="move-log"></div>
             </aside>
         </div>
@@ -84,6 +99,7 @@
     <script src="pikafish-adapter.js"></script>
     <script src="books/chessdb-opening.js"></script>
     <script src="cloud-opening-book.js"></script>
+    <script src="game-review.js"></script>
     <script src="game.js"></script>
     <script src="pwa.js"></script>
 </body>

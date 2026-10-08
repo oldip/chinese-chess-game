@@ -10,7 +10,7 @@ class Worker {
         if (command === 'uci') queueMicrotask(() => this.emit({ type: 'line', line: 'uciok' }));
         if (command === 'isready') queueMicrotask(() => this.emit({ type: 'line', line: 'readyok' }));
         if (command?.startsWith('go ')) queueMicrotask(() => {
-            this.emit({ type: 'line', line: 'info depth 3 multipv 1 score cp -125' });
+            this.emit({ type: 'line', line: 'info depth 3 multipv 1 score cp -125 pv a3a4' });
             this.emit({ type: 'line', line: 'info depth 3 multipv 2 score cp -300' });
             this.emit({ type: 'line', line: 'bestmove a3a4' });
         });
@@ -20,6 +20,11 @@ class Worker {
 }
 (async () => {
     const engine = new PikafishEngine({ WorkerClass: Worker, baseUrl: 'https://example.test/' });
+    assert.equal(typeof engine.getAnalysis, 'function', 'review requires best move, score, depth and principal variation together');
+    const analysis = await engine.getAnalysis({ movetime: 100 });
+    assert.deepEqual(analysis.score, { type: 'cp', value: -125 });
+    assert.equal(analysis.depth, 3);
+    assert.deepEqual(analysis.pv, ['a3a4']);
     const updates = [];
     assert.deepEqual(await engine.getEvaluation({ movetime: 150, onScore: score => updates.push(score) }), { type: 'cp', value: -125 });
     assert.deepEqual(updates, [{ type: 'cp', value: -125 }], 'only the principal estimate is used');
