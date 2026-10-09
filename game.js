@@ -2473,6 +2473,7 @@ let engineGameGeneration = -1;
 let reviewOpen = false;
 let reviewSession = null;
 let reviewIndex = 0;
+let reviewSuggestion = false;
 let reviewVersion = 0;
 let reviewRunning = false;
 let reviewTask = Promise.resolve();
@@ -2791,6 +2792,7 @@ function buildBoardSvg() {
             \u6f22\u754c
         </text>
     </svg>
+    <svg id="review-arrow" class="board-svg review-arrow" viewBox="0 0 9 10" aria-hidden="true" preserveAspectRatio="none" hidden></svg>
     <div class="board-grid"></div>
 </div>`.trim();
 }
@@ -2828,8 +2830,9 @@ function createBoard() {
 
     const boardElement = document.getElementById('board');
     boardElement.classList.toggle('flipped', humanColor === BLACK_COLOR);
-    const displayBoard = reviewOpen ? reviewSession.boards[reviewIndex] : board;
-    const displayLastMove = reviewOpen ? reviewSession.moves[reviewIndex - 1] : lastMove;
+    const displayIndex = reviewSuggestion ? Math.max(0, reviewIndex - 1) : reviewIndex;
+    const displayBoard = reviewOpen ? reviewSession.boards[displayIndex] : board;
+    const displayLastMove = reviewOpen ? reviewSession.moves[displayIndex - 1] : lastMove;
     boardElement.innerHTML = BOARD_SVG;
     const gridElement = boardElement.querySelector('.board-grid');
 
@@ -3004,6 +3007,7 @@ function leaveReview() {
     if (!reviewOpen) return;
     cancelPendingAiJob();
     reviewOpen = false;
+    reviewSuggestion = false;
     createBoard();
     renderMoveLog();
     updateStatus();
@@ -3012,8 +3016,18 @@ function leaveReview() {
 function goToReview(index) {
     if (!reviewOpen) return;
     reviewIndex = Math.max(0, Math.min(reviewSession.moves.length, index));
+    reviewSuggestion = false;
     createBoard();
     renderMoveLog();
+}
+
+function toggleReviewSuggestion() {
+    if (!reviewOpen) return;
+    const result = reviewSession.results[Math.max(0, reviewIndex - 1)];
+    if (!result?.best?.move) return;
+    reviewSuggestion = !reviewSuggestion;
+    createBoard();
+    updateReviewControls();
 }
 
 function stopReviewAnalysis() {
@@ -3037,7 +3051,7 @@ function updateReviewControls() {
     document.getElementById('review-prev').disabled = reviewIndex === 0;
     document.getElementById('review-next').disabled = reviewIndex === total;
     const result = reviewIndex ? reviewSession.results[reviewIndex - 1] : reviewSession.results[0];
-    const score = reviewIndex ? result?.played?.score : result?.best?.score;
+    const score = reviewIndex && !reviewSuggestion ? result?.played?.score : result?.best?.score;
     const mover = reviewIndex ? (reviewIndex % 2 ? RED_COLOR : BLACK_COLOR) : RED_COLOR;
     const element = document.getElementById('position-evaluation');
     element.dataset.side = humanColor === RED_COLOR ? 'red' : 'black';
@@ -3047,11 +3061,26 @@ function updateReviewControls() {
         ? `局勢評分：${colorName(value > 0 ? humanColor : otherColor(humanColor))}將殺（${Math.abs(value)}）`
         : `局勢評分：${colorName(humanColor)} ${integerValue >= 0 ? '+' : ''}${integerValue}`;
     document.getElementById('review-step').textContent = reviewIndex ? `第 ${reviewIndex}/${total} 步 · ${result?.grade.label || '待分析'}` : '初始局面';
+    if (reviewSuggestion) document.getElementById('review-step').textContent += ' · 走棋前';
     document.getElementById('review-reason').textContent = reviewSession.error || (reviewIndex ? result?.grade.reason || '此步尚未分析。' : '點選棋譜或使用前後按鈕重看每一步。');
     const suggestion = result?.best?.move;
     const before = reviewSession.boards[Math.max(0, reviewIndex - 1)];
     const move = suggestion && createMove(before, suggestion.fromRow, suggestion.fromCol, suggestion.toRow, suggestion.toCol);
     document.getElementById('review-best').textContent = move ? `建議走法：${formatMoveNotation(before, move)}` : '建議走法：—';
+    const suggestionButton = document.getElementById('review-suggestion');
+    suggestionButton.disabled = !move;
+    suggestionButton.textContent = reviewSuggestion ? '返回走棋後' : '建議走法';
+    suggestionButton.setAttribute('aria-pressed', String(reviewSuggestion));
+    const arrow = document.getElementById('review-arrow');
+    arrow.toggleAttribute('hidden', !reviewSuggestion || !move);
+    arrow.innerHTML = '';
+    if (reviewSuggestion && move) {
+        const dx = move.toCol - move.fromCol, dy = move.toRow - move.fromRow;
+        const distance = Math.hypot(dx, dy);
+        const offsetX = dx / distance * 0.25, offsetY = dy / distance * 0.25;
+        arrow.innerHTML = `<defs><marker id="review-arrow-head" markerWidth="0.3" markerHeight="0.4" refX="0.28" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.3 0.2 L 0 0.4 Z" fill="currentColor" /></marker></defs>
+            <line x1="${move.fromCol + 0.5 + offsetX}" y1="${move.fromRow + 0.5 + offsetY}" x2="${move.toCol + 0.5 - offsetX}" y2="${move.toRow + 0.5 - offsetY}" stroke="currentColor" stroke-width="0.1" stroke-linecap="round" marker-end="url(#review-arrow-head)" />`;
+    }
     updateUndoButton();
 }
 
@@ -3522,6 +3551,7 @@ if (typeof window !== 'undefined') {
     window.startReview = startReview;
     window.leaveReview = leaveReview;
     window.goToReview = goToReview;
+    window.toggleReviewSuggestion = toggleReviewSuggestion;
     window.stopReviewAnalysis = stopReviewAnalysis;
     window.runReviewAnalysis = runReviewAnalysis;
     window.setGameMode = setGameMode;

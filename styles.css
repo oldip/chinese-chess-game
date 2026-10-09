@@ -296,6 +296,9 @@ h1 {
     z-index: 0;
 }
 
+.review-arrow { z-index: 2; pointer-events: none; color: #15803d; opacity: 0.85; }
+.review-arrow[hidden] { display: none; }
+
 .board-grid {
     position: absolute;
     inset: var(--board-inset);

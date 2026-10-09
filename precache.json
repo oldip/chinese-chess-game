@@ -1,20 +1,20 @@
 {
-  "version": "pikafish-a402572bd5a611b1",
+  "version": "pikafish-e182facc4c3e0e07",
   "files": [
     {
       "path": "index.html",
-      "bytes": 7172,
-      "sha256": "e62e6b9aa04bd3dcd81f69f39df2dc94508af633011d1f2d50fe646648c5b3d1"
+      "bytes": 7328,
+      "sha256": "f91508ad8d1d280930b22055141ef65b3beb6973f6df617b483c3a7dac9cade8"
     },
     {
       "path": "styles.css",
-      "bytes": 12252,
-      "sha256": "5560a28972dc20ef7fa575c0af3fd676d0a3f25777ab86336b94a2fa3e989508"
+      "bytes": 12377,
+      "sha256": "fdfa6d767f1f64e61707c24dd052b7c9915bc6eb61e6abc91e0d39d2921872fe"
     },
     {
       "path": "game.js",
-      "bytes": 126894,
-      "sha256": "c972cc1fedcda3943784c40e20497497a5fb6a891c123146896630dbc04247fa"
+      "bytes": 128839,
+      "sha256": "556671e4a78de737160cc90001de01d4c786f3e30ff6787749987342c1a5d837"
     },
     {
       "path": "game-review.js",

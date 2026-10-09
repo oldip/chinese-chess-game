@@ -86,6 +86,7 @@ AI 正常搜尋前還原其 Skill，避免分析改強初／中級。
 
 `game-review.js` 接收 Adapter `getAnalysis` 的最佳走法、主變例 score／depth／pv；兩次搜尋均從同一初始 FEN 加完整歷史開始，第一個 root 取現有合法規則，第二個只准實際走法。每次最多 500 ms，若實際走法即最佳則重用結果。
 `game.js` 只以另存的棋盤序列顯示過去局面，不改動真實 board／moveSequence；分析與 AI 共用同一 Worker。取消、退出、頁面離開、新局及悔棋分支均隔離或清除舊結果。
+建議預覽以獨立布林狀態切換 boards[index]／boards[index-1]，SVG 使用同一 9×10 座標及 board-surface 翻轉，不改真實棋盤／歷史。預覽用 best.score，返回用 played.score；分析尚未提供最佳走法時按鈕停用，切步／退出清除預覽。
 評級數值門檻、將殺／棄子條件見 README；沒有移用西洋棋勝率校準或假裝 Pikafish 原生輸出「妙手」。
 
 ## 官方網頁雲庫

@@ -48,7 +48,7 @@ assert.equal(classifyMove({ best: cp(20), played: { type: 'mate', value: 4 }, sa
     const warnings = [];
     ctx.console = { ...console, warn: (...args) => warnings.push(args) };
     const elements = new Map();
-    ctx.document = { getElementById: id => { if (!elements.has(id)) elements.set(id, { dataset: {} }); return elements.get(id); } };
+    ctx.document = { getElementById: id => { if (!elements.has(id)) elements.set(id, { dataset: {}, setAttribute(name, value) { this[name] = value; }, toggleAttribute(name, value) { this.attributes ||= {}; this.attributes[name] = value; } }); return elements.get(id); } };
     ctx.window = { offlinePreparation: Promise.resolve() };
     ctx.navigator = { deviceMemory: 8 };
     vm.runInContext(`
@@ -70,6 +70,31 @@ assert.equal(classifyMove({ best: cp(20), played: { type: 'mate', value: 4 }, sa
     vm.runInContext("humanColor = 'b'; reviewSession.results[0].played.score.value = 799; updateReviewControls();", ctx);
     assert.equal(elements.get('position-evaluation').textContent, '局勢評分：黑方 -7');
     assert.equal(elements.get('position-evaluation').dataset.side, 'black');
+    assert.equal(vm.runInContext('typeof toggleReviewSuggestion', ctx), 'function', 'review needs a separate best-move preview toggle');
+    vm.runInContext(`
+        createBoard = () => { testRenders++; }; renderMoveLog = () => {}; updateStatus = () => {};
+        testRenders = 0; humanColor = 'r';
+        reviewSession.boards.push(cloneBoard(initialBoard));
+        reviewSession.results[0].best = { move: { fromRow: 6, fromCol: 0, toRow: 5, toCol: 0 }, score: { type: 'cp', value: 899 } };
+        toggleReviewSuggestion();
+    `, ctx);
+    assert.equal(vm.runInContext('reviewSuggestion', ctx), true);
+    assert.equal(elements.get('review-suggestion').textContent, '返回走棋後');
+    assert.equal(elements.get('review-suggestion')['aria-pressed'], 'true');
+    assert.equal(elements.get('position-evaluation').textContent, '局勢評分：紅方 +8', 'preview uses the best-move assessment');
+    assert.equal(elements.get('review-arrow').attributes.hidden, false);
+    assert.match(elements.get('review-arrow').innerHTML, /marker-end/);
+    vm.runInContext('toggleReviewSuggestion();', ctx);
+    assert.equal(vm.runInContext('reviewSuggestion', ctx), false);
+    assert.equal(elements.get('review-arrow').attributes.hidden, true);
+    assert.equal(elements.get('position-evaluation').textContent, '局勢評分：紅方 +7', 'return restores actual-move assessment');
+    vm.runInContext('toggleReviewSuggestion(); goToReview(0); updateReviewControls();', ctx);
+    assert.equal(vm.runInContext('reviewSuggestion', ctx), false, 'navigating always clears the preview');
+    vm.runInContext('reviewSession.results = []; updateReviewControls(); toggleReviewSuggestion();', ctx);
+    assert.equal(elements.get('review-suggestion').disabled, true, 'no arrow before analysis provides a move');
+    assert.equal(vm.runInContext('reviewSuggestion', ctx), false);
+    vm.runInContext('reviewSuggestion = true; leaveReview();', ctx);
+    assert.equal(vm.runInContext('reviewSuggestion', ctx), false, 'leaving clears preview state');
     ctx.uciToMove = require('../pikafish-adapter.js').uciToMove;
     vm.runInContext(`
         sacrificeBoard = Array.from({ length: 10 }, () => Array(9).fill(''));
