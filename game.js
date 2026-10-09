@@ -3142,8 +3142,8 @@ function updateBoardAnalysisOverlay() {
         const dx = move.toCol - move.fromCol, dy = move.toRow - move.fromRow;
         const distance = Math.hypot(dx, dy);
         const offsetX = dx / distance * 0.25, offsetY = dy / distance * 0.25;
-        arrow.innerHTML = `<defs><marker id="review-arrow-head" markerWidth="0.3" markerHeight="0.4" refX="0.28" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.3 0.2 L 0 0.4 Z" fill="currentColor" /></marker></defs>
-            <line x1="${move.fromCol + 0.5 + offsetX}" y1="${move.fromRow + 0.5 + offsetY}" x2="${move.toCol + 0.5 - offsetX}" y2="${move.toRow + 0.5 - offsetY}" stroke="currentColor" stroke-width="0.1" stroke-linecap="round" marker-end="url(#review-arrow-head)" />`;
+        arrow.innerHTML = `<defs><marker id="review-arrow-head" markerWidth="0.3" markerHeight="0.4" refX="0.3" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.3 0.2 L 0 0.4 Z" fill="currentColor" /></marker></defs>
+            <line x1="${move.fromCol + 0.5 + offsetX}" y1="${move.fromRow + 0.5 + offsetY}" x2="${move.toCol + 0.5}" y2="${move.toRow + 0.5}" stroke="currentColor" stroke-width="0.1" stroke-linecap="round" marker-end="url(#review-arrow-head)" />`;
     }
     if (!document.querySelectorAll) return;
     document.querySelectorAll('.piece[data-review-grade]').forEach(piece => {

@@ -82,6 +82,7 @@ assert.equal(classifyMove({ best: cp(20), played: { type: 'mate', value: 4 }, sa
     assert.equal(elements.get('position-evaluation').textContent, '局勢評分：紅方 +7', 'after-move review keeps actual-move assessment');
     assert.equal(elements.get('review-arrow').attributes.hidden, false, 'analysed step automatically shows the best move');
     assert.match(elements.get('review-arrow').innerHTML, /marker-end/);
+    assert.match(elements.get('review-arrow').innerHTML, /x2="0.5" y2="5.5"/, 'arrow tip reaches the target square centre');
     assert.match(elements.get('review-best').textContent, /正著：/);
     vm.runInContext('goToReview(0); updateReviewControls();', ctx);
     assert.equal(elements.get('review-arrow').attributes.hidden, true, 'initial position has no played step to annotate');

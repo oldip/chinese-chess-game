@@ -71,7 +71,7 @@ const base = process.env.TEST_URL || 'http://127.0.0.1:8080/chinese-chess-game/'
                     return { from: nearCell(point('x1', 'y1'), suggestion.fromRow, suggestion.fromCol),
                         to: nearCell(point('x2', 'y2'), suggestion.toRow, suggestion.toCol), pointer: getComputedStyle(svg).pointerEvents, display: getComputedStyle(svg).display, hiddenAttribute: svg.hasAttribute('hidden') };
                 });
-                assert.ok(geometry.from < 0.3 && geometry.to < 0.3, 'arrow endpoints must align with engine squares at every orientation and size: ' + JSON.stringify(geometry));
+                assert.ok(geometry.from < 0.3 && geometry.to < 0.01, 'arrow endpoints must align with engine squares at every orientation and size: ' + JSON.stringify(geometry));
                 assert.equal(geometry.pointer, 'none');
                 assert.equal(await page.locator('#review-arrow line').count(), 1);
             };
@@ -88,7 +88,16 @@ const base = process.env.TEST_URL || 'http://127.0.0.1:8080/chinese-chess-game/'
             await assertBadge();
             assert.doesNotMatch(await page.locator('#review-step').textContent(), /走棋前/);
             await page.screenshot({ path: `test-results/${channel}-review-arrow-red.png`, fullPage: true });
-            await page.evaluate(() => goToReview(0));
+            // A legal knight suggestion isolates diagonal tip length as reported by the player.
+            await page.evaluate(() => {
+                goToReview(1);
+                window.savedBestMove = reviewSession.results[0].best.move;
+                reviewSession.results[0].best.move = { fromRow: 9, fromCol: 7, toRow: 7, toCol: 6 };
+                updateReviewControls();
+            });
+            await assertArrow();
+            await page.screenshot({ path: `test-results/${channel}-review-arrow-knight.png`, fullPage: true });
+            await page.evaluate(() => { reviewSession.results[0].best.move = window.savedBestMove; goToReview(0); });
             assert.equal(await page.locator('#review-arrow').isVisible(), false);
             assert.equal(await page.locator('.piece[data-review-grade]').count(), 0);
             await page.evaluate(() => goToReview(3)); await assertBoard(3); await assertArrow(); await assertBadge();
