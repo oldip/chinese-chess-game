@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { boardToFen, moveToUci, uciToMove } = require('../pikafish-adapter.js');
 const configurations = [], positions = [], searches = [];
-let reply = { type: 'cp', value: 700 };
+let reply = { type: 'cp', value: 799 };
 class Engine {
     async init() {}
     async configure(options) { configurations.push(options); }
@@ -25,20 +25,29 @@ const run = code => vm.runInContext(code, context);
     assert.equal(run('typeof refreshPositionEvaluation'), 'function', 'independent current-board analysis must exist');
     run("setupOpen = false; gameActive = true; aiLevel = 'beginner';");
     await run('refreshPositionEvaluation()');
-    assert.match(element.textContent, /紅方 \+7\.00/);
+    assert.match(element.textContent, /紅方 \+7$/);
     assert.equal(configurations[0].skill, 20, 'assessment must use full strength despite beginner opponent');
     run("currentPlayer = 'b';");
     await run('refreshPositionEvaluation()');
-    assert.match(element.textContent, /紅方 -7\.00/, 'Black-positive UCI score converts to red perspective');
+    assert.match(element.textContent, /紅方 -7$/, 'Black-positive UCI score converts to red perspective');
     assert.equal(element.dataset.side, 'red', 'red player retains red text even with a negative score');
     run("humanColor = 'b';");
     await run('refreshPositionEvaluation()');
-    assert.match(element.textContent, /黑方 \+7\.00/, 'black player uses black perspective');
+    assert.match(element.textContent, /黑方 \+7$/, 'black player uses black perspective');
     assert.equal(element.dataset.side, 'black');
     run("currentPlayer = 'r';");
     await run('refreshPositionEvaluation()');
-    assert.match(element.textContent, /黑方 -7\.00/);
+    assert.match(element.textContent, /黑方 -7$/);
     assert.equal(element.dataset.side, 'black', 'black player retains black text when behind');
+    run("currentPlayer = 'r'; humanColor = 'r';");
+    for (const [value, expected] of [[799, '+7'], [101, '+1'], [-799, '-7'], [-101, '-1'], [-99, '+0'], [0, '+0']]) {
+        reply = { type: 'cp', value };
+        await run('refreshPositionEvaluation()');
+        assert.equal(element.textContent, `局勢評分：紅方 ${expected}`, 'truncate toward zero; never round or floor negatives');
+    }
+    reply = { type: 'mate', value: 3 };
+    await run('refreshPositionEvaluation()');
+    assert.equal(element.textContent, '局勢評分：紅方將殺（3）');
     let finish;
     reply = () => new Promise(resolve => { finish = resolve; });
     const old = run('refreshPositionEvaluation()');

@@ -1,5 +1,5 @@
 {
-  "version": "pikafish-07df6c7c464aae52",
+  "version": "pikafish-a402572bd5a611b1",
   "files": [
     {
       "path": "index.html",
@@ -13,8 +13,8 @@
     },
     {
       "path": "game.js",
-      "bytes": 126800,
-      "sha256": "7d86b9462a474362f0eea65e83c629a1c5fec1885d0437ddc5f1514afbaf779d"
+      "bytes": 126894,
+      "sha256": "c972cc1fedcda3943784c40e20497497a5fb6a891c123146896630dbc04247fa"
     },
     {
       "path": "game-review.js",

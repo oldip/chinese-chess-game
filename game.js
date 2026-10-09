@@ -2498,9 +2498,10 @@ function refreshPositionEvaluation() {
     const showScore = score => {
         if (!current() || !score) return;
         const value = color === perspective ? score.value : -score.value;
+        const integerValue = Math.trunc(value / 100);
         element.textContent = score.type === 'mate'
             ? `局勢評分：${colorName(value > 0 ? perspective : otherColor(perspective))}將殺（${Math.abs(value)}）`
-            : `局勢評分：${colorName(perspective)} ${value >= 0 ? '+' : ''}${(value / 100).toFixed(2)}`;
+            : `局勢評分：${colorName(perspective)} ${integerValue >= 0 ? '+' : ''}${integerValue}`;
     };
     element.textContent = '局勢評分：分析中…';
     evaluationTask = evaluationTask.catch(() => {}).then(async () => {
@@ -3041,9 +3042,10 @@ function updateReviewControls() {
     const element = document.getElementById('position-evaluation');
     element.dataset.side = humanColor === RED_COLOR ? 'red' : 'black';
     const value = score && (mover === humanColor ? score.value : -score.value);
+    const integerValue = Math.trunc(value / 100);
     element.textContent = !score ? '局勢評分：待分析' : score.type === 'mate'
         ? `局勢評分：${colorName(value > 0 ? humanColor : otherColor(humanColor))}將殺（${Math.abs(value)}）`
-        : `局勢評分：${colorName(humanColor)} ${value >= 0 ? '+' : ''}${(value / 100).toFixed(2)}`;
+        : `局勢評分：${colorName(humanColor)} ${integerValue >= 0 ? '+' : ''}${integerValue}`;
     document.getElementById('review-step').textContent = reviewIndex ? `第 ${reviewIndex}/${total} 步 · ${result?.grade.label || '待分析'}` : '初始局面';
     document.getElementById('review-reason').textContent = reviewSession.error || (reviewIndex ? result?.grade.reason || '此步尚未分析。' : '點選棋譜或使用前後按鈕重看每一步。');
     const suggestion = result?.best?.move;

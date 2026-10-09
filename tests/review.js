@@ -61,6 +61,15 @@ assert.equal(classifyMove({ best: cp(20), played: { type: 'mate', value: 4 }, sa
     await vm.runInContext('runReviewAnalysis()', ctx);
     assert.match(elements.get('review-reason').textContent, /分析暫時無法完成/, 'analysis failure must remain visible after finally updates controls');
     assert.equal(warnings.length, 1);
+    vm.runInContext("reviewIndex = 1; reviewSession.error = '';", ctx);
+    for (const [value, expected] of [[799, '+7'], [-799, '-7'], [-99, '+0']]) {
+        ctx.testScore = value;
+        vm.runInContext("humanColor = 'r'; reviewSession.results = [{ played: { score: { type: 'cp', value: testScore } }, grade: { label: '正著', reason: '' } }]; updateReviewControls();", ctx);
+        assert.equal(elements.get('position-evaluation').textContent, `局勢評分：紅方 ${expected}`);
+    }
+    vm.runInContext("humanColor = 'b'; reviewSession.results[0].played.score.value = 799; updateReviewControls();", ctx);
+    assert.equal(elements.get('position-evaluation').textContent, '局勢評分：黑方 -7');
+    assert.equal(elements.get('position-evaluation').dataset.side, 'black');
     ctx.uciToMove = require('../pikafish-adapter.js').uciToMove;
     vm.runInContext(`
         sacrificeBoard = Array.from({ length: 10 }, () => Array(9).fill(''));
