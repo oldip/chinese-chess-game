@@ -86,7 +86,6 @@ AI 正常搜尋前還原其 Skill，避免分析改強初／中級。
 
 `game-review.js` 接收 Adapter `getAnalysis` 的最佳走法、主變例 score／depth／pv；兩次搜尋均從同一初始 FEN 加完整歷史開始，第一個 root 取現有合法規則，第二個只准實際走法。每次最多 500 ms，若實際走法即最佳則重用結果。
 `game.js` 只以另存的棋盤序列顯示過去局面，不改動真實 board／moveSequence；分析與 AI 共用同一 Worker。取消、退出、頁面離開、新局及悔棋分支均隔離或清除舊結果。
-建議預覽以獨立布林狀態切換 boards[index]／boards[index-1]，SVG 使用同一 9×10 座標及 board-surface 翻轉，不改真實棋盤／歷史。預覽用 best.score，返回用 played.score；分析尚未提供最佳走法時按鈕停用，切步／退出清除預覽。
 評級數值門檻、將殺／棄子條件見 README；沒有移用西洋棋勝率校準或假裝 Pikafish 原生輸出「妙手」。
 
 ## 官方網頁雲庫
@@ -122,3 +121,9 @@ API 行為依 [雲庫公開文件](https://www.chessdb.cn/cloudbook_api.html)。
 
 首次快取包含開局資料及來源／授權，全部靜態資源合計 21,770,579 bytes。
 引擎與 NNUE 二進位檔未修改；正常對弈仍重用既有 Worker。
+
+## 對局提示與復盤標記
+
+`requestHint` 與局勢評分共用 `evaluationTask` 排程及同一 Worker，500 ms／Skill 20，加初始 FEN 與完整歷史並限制本站合法走法。`hintVersion`、棋盤／歷史與 `aiGeneration` 檢查阻止舊結果；走棋取消提示搜尋，AI 回合等待同一排程。提示次數不放入悔棋快照，成功顯示才扣除，每局重置為所選難度的 10／5／不限。
+
+復盤不切換棋盤快照：`boards[reviewIndex]` 顯示走完後局面，`results[reviewIndex - 1].best.move` 自動畫箭頭；實際落點的棋子用 CSS 徽章顯示評級與色環。初始局面、未分析步與退出清除標記。9×10 SVG 與棋盤同父元素，翻轉及縮放共用座標；箭頭仍代表走棋前的最佳選擇。復盤分數維持實際走法的評分，沒有新增搜尋。

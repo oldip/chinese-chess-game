@@ -2473,7 +2473,11 @@ let engineGameGeneration = -1;
 let reviewOpen = false;
 let reviewSession = null;
 let reviewIndex = 0;
-let reviewSuggestion = false;
+let remainingHints = Infinity;
+let hintThinking = false;
+let hintMove = null;
+let hintMessage = '';
+let hintVersion = 0;
 let reviewVersion = 0;
 let reviewRunning = false;
 let reviewTask = Promise.resolve();
@@ -2524,6 +2528,70 @@ function refreshPositionEvaluation() {
     return evaluationTask;
 }
 
+function canRequestHint() {
+    return !setupOpen && !reviewOpen && gameActive && hasComputerOpponent() && currentPlayer === humanColor &&
+        !aiThinking && !hintThinking && !hintMove && remainingHints > 0;
+}
+
+function updateHintControls() {
+    if (typeof document === 'undefined') return;
+    const button = document.getElementById('hint-button');
+    if (!button) return;
+    button.hidden = reviewOpen || !hasComputerOpponent();
+    button.disabled = !canRequestHint();
+    button.textContent = hintThinking ? '提示分析中…' : Number.isFinite(remainingHints) ? `提示（${remainingHints}）` : '提示';
+    button.title = Number.isFinite(remainingHints) ? `本局剩餘 ${remainingHints} 次提示` : '本局提示不限次數';
+    document.getElementById('hint-status').textContent = hintMessage;
+    updateBoardAnalysisOverlay();
+}
+
+function cancelPendingHint() {
+    hintVersion++;
+    if (hintThinking && pikafishEngine) pikafishEngine.stop().catch(() => {});
+    hintThinking = false;
+    hintMove = null;
+    hintMessage = '';
+    updateHintControls();
+}
+
+function requestHint() {
+    if (!canRequestHint()) return evaluationTask;
+    const version = ++hintVersion, generation = aiGeneration, color = currentPlayer;
+    const key = getBoardKey(board, color), history = cloneMoveSequence(moveSequence);
+    const legal = filterPlayableMoves(board, color, getAllLegalMoves(board, color), positionHistory, history);
+    const current = () => version === hintVersion && generation === aiGeneration && !setupOpen && !reviewOpen &&
+        gameActive && color === humanColor && key === getBoardKey(board, currentPlayer) && history.join('/') === moveSequence.join('/');
+    hintThinking = true;
+    hintMessage = '';
+    updateHintControls();
+    // Use the existing analysis queue and Worker; AI turns wait for this queue too.
+    evaluationTask = evaluationTask.catch(() => {}).then(async () => {
+        await window.offlinePreparation;
+        if (!current()) return;
+        const engine = ensurePikafish();
+        await engine.init();
+        if (!current()) return;
+        await engine.configure({ skill: 20, hash: navigator.deviceMemory && navigator.deviceMemory <= 4 ? 8 : 16 });
+        if (!current()) return;
+        await engine.setPosition(boardToFen(initialBoard, RED_COLOR), history.map(key => moveToUci(parseMoveKey(key))));
+        if (!current()) return;
+        const move = await engine.getBestMove({ movetime: 500, searchmoves: legal.map(moveToUci) });
+        if (!current()) return;
+        const candidate = legal.find(candidate => sameMove(candidate, move));
+        if (!candidate) throw new Error('No legal hint');
+        hintMove = candidate;
+        if (Number.isFinite(remainingHints)) remainingHints--;
+        hintMessage = `提示：${formatMoveNotation(board, candidate)}`;
+    }).catch(() => {
+        if (current()) hintMessage = '提示暫時無法完成，請重試。';
+    }).finally(() => {
+        if (version !== hintVersion) return;
+        hintThinking = false;
+        updateHintControls();
+    });
+    return evaluationTask;
+}
+
 function updateEngineStatus(data) {
     const element = document.getElementById('engine-status');
     if (element) {
@@ -2540,6 +2608,7 @@ function ensurePikafish() {
 }
 
 function cancelPendingAiJob() {
+    cancelPendingHint();
     reviewVersion++;
     reviewRunning = false;
     evaluationVersion++;
@@ -2830,7 +2899,7 @@ function createBoard() {
 
     const boardElement = document.getElementById('board');
     boardElement.classList.toggle('flipped', humanColor === BLACK_COLOR);
-    const displayIndex = reviewSuggestion ? Math.max(0, reviewIndex - 1) : reviewIndex;
+    const displayIndex = reviewIndex;
     const displayBoard = reviewOpen ? reviewSession.boards[displayIndex] : board;
     const displayLastMove = reviewOpen ? reviewSession.moves[displayIndex - 1] : lastMove;
     boardElement.innerHTML = BOARD_SVG;
@@ -2873,6 +2942,7 @@ function createBoard() {
     }
 
     animatePendingMove(boardElement);
+    updateBoardAnalysisOverlay();
 }
 
 function animatePendingMove(boardElement) {
@@ -3007,7 +3077,6 @@ function leaveReview() {
     if (!reviewOpen) return;
     cancelPendingAiJob();
     reviewOpen = false;
-    reviewSuggestion = false;
     createBoard();
     renderMoveLog();
     updateStatus();
@@ -3016,18 +3085,8 @@ function leaveReview() {
 function goToReview(index) {
     if (!reviewOpen) return;
     reviewIndex = Math.max(0, Math.min(reviewSession.moves.length, index));
-    reviewSuggestion = false;
     createBoard();
     renderMoveLog();
-}
-
-function toggleReviewSuggestion() {
-    if (!reviewOpen) return;
-    const result = reviewSession.results[Math.max(0, reviewIndex - 1)];
-    if (!result?.best?.move) return;
-    reviewSuggestion = !reviewSuggestion;
-    createBoard();
-    updateReviewControls();
 }
 
 function stopReviewAnalysis() {
@@ -3051,7 +3110,7 @@ function updateReviewControls() {
     document.getElementById('review-prev').disabled = reviewIndex === 0;
     document.getElementById('review-next').disabled = reviewIndex === total;
     const result = reviewIndex ? reviewSession.results[reviewIndex - 1] : reviewSession.results[0];
-    const score = reviewIndex && !reviewSuggestion ? result?.played?.score : result?.best?.score;
+    const score = reviewIndex ? result?.played?.score : result?.best?.score;
     const mover = reviewIndex ? (reviewIndex % 2 ? RED_COLOR : BLACK_COLOR) : RED_COLOR;
     const element = document.getElementById('position-evaluation');
     element.dataset.side = humanColor === RED_COLOR ? 'red' : 'black';
@@ -3061,27 +3120,51 @@ function updateReviewControls() {
         ? `局勢評分：${colorName(value > 0 ? humanColor : otherColor(humanColor))}將殺（${Math.abs(value)}）`
         : `局勢評分：${colorName(humanColor)} ${integerValue >= 0 ? '+' : ''}${integerValue}`;
     document.getElementById('review-step').textContent = reviewIndex ? `第 ${reviewIndex}/${total} 步 · ${result?.grade.label || '待分析'}` : '初始局面';
-    if (reviewSuggestion) document.getElementById('review-step').textContent += ' · 走棋前';
     document.getElementById('review-reason').textContent = reviewSession.error || (reviewIndex ? result?.grade.reason || '此步尚未分析。' : '點選棋譜或使用前後按鈕重看每一步。');
     const suggestion = result?.best?.move;
     const before = reviewSession.boards[Math.max(0, reviewIndex - 1)];
     const move = suggestion && createMove(before, suggestion.fromRow, suggestion.fromCol, suggestion.toRow, suggestion.toCol);
-    document.getElementById('review-best').textContent = move ? `建議走法：${formatMoveNotation(before, move)}` : '建議走法：—';
-    const suggestionButton = document.getElementById('review-suggestion');
-    suggestionButton.disabled = !move;
-    suggestionButton.textContent = reviewSuggestion ? '返回走棋後' : '建議走法';
-    suggestionButton.setAttribute('aria-pressed', String(reviewSuggestion));
+    document.getElementById('review-best').textContent = move ? `正著：${formatMoveNotation(before, move)}` : '正著：—';
+    updateBoardAnalysisOverlay();
+    updateUndoButton();
+    updateHintControls();
+}
+
+function updateBoardAnalysisOverlay() {
+    if (typeof document === 'undefined') return;
     const arrow = document.getElementById('review-arrow');
-    arrow.toggleAttribute('hidden', !reviewSuggestion || !move);
+    if (!arrow) return;
+    const result = reviewOpen && reviewIndex ? reviewSession.results[reviewIndex - 1] : null;
+    const move = reviewOpen ? result?.best?.move : hintMove;
+    arrow.toggleAttribute('hidden', !move);
     arrow.innerHTML = '';
-    if (reviewSuggestion && move) {
+    if (move) {
         const dx = move.toCol - move.fromCol, dy = move.toRow - move.fromRow;
         const distance = Math.hypot(dx, dy);
         const offsetX = dx / distance * 0.25, offsetY = dy / distance * 0.25;
         arrow.innerHTML = `<defs><marker id="review-arrow-head" markerWidth="0.3" markerHeight="0.4" refX="0.28" refY="0.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 0.3 0.2 L 0 0.4 Z" fill="currentColor" /></marker></defs>
             <line x1="${move.fromCol + 0.5 + offsetX}" y1="${move.fromRow + 0.5 + offsetY}" x2="${move.toCol + 0.5 - offsetX}" y2="${move.toRow + 0.5 - offsetY}" stroke="currentColor" stroke-width="0.1" stroke-linecap="round" marker-end="url(#review-arrow-head)" />`;
     }
-    updateUndoButton();
+    if (!document.querySelectorAll) return;
+    document.querySelectorAll('.piece[data-review-grade]').forEach(piece => {
+        delete piece.dataset.reviewGrade;
+        delete piece.dataset.gradeSymbol;
+        piece.style.removeProperty('--grade-color');
+        piece.removeAttribute('title');
+        piece.removeAttribute('aria-label');
+    });
+    const played = result && reviewSession.moves[reviewIndex - 1];
+    const piece = played && document.querySelector(`.cell[data-row="${played.toRow}"][data-col="${played.toCol}"] .piece`);
+    if (!piece) return;
+    const badges = { '妙手': ['!!', '#14b8a6'], '正著': ['★', '#8cba43'], '優秀': ['👍', '#a000ff'],
+        '良好': ['✓', '#3182ee'], '軟招': ['?!', '#eab308'], '錯招': ['?', '#f97340'], '漏著': ['??', '#ed3366'] };
+    const label = result.grade.label, badge = badges[label];
+    if (!badge) return;
+    piece.dataset.reviewGrade = label;
+    piece.dataset.gradeSymbol = badge[0];
+    piece.style.setProperty('--grade-color', badge[1]);
+    piece.title = label;
+    piece.setAttribute('aria-label', `${PIECE_LABELS[played.piece]}，${label}`);
 }
 
 function isReviewSacrifice(before, move, pv) {
@@ -3206,6 +3289,7 @@ function updateStatus() {
     updateGameSettings();
     updateSetupPanel();
     updateUndoButton();
+    updateHintControls();
 
     if (setupOpen) {
         turnElement.textContent = '\u5c0d\u5c40\u8a2d\u5b9a';
@@ -3269,6 +3353,7 @@ function finalizeMove() {
 }
 
 function performMove(move) {
+    cancelPendingHint();
     reviewSession = null;
     if (hasComputerOpponent() && currentPlayer === humanColor) {
         cancelPendingPonderJob(false);
@@ -3495,6 +3580,7 @@ function resetGame() {
     moveSequence = [];
     positionHistory = [getBoardKey(board, currentPlayer)];
     remainingUndos = getUndoLimit();
+    remainingHints = getUndoLimit();
     pendingAnimatedMove = null;
     transpositionTable.clear();
     statusMessage = getStartStatusMessage();
@@ -3551,7 +3637,7 @@ if (typeof window !== 'undefined') {
     window.startReview = startReview;
     window.leaveReview = leaveReview;
     window.goToReview = goToReview;
-    window.toggleReviewSuggestion = toggleReviewSuggestion;
+    window.requestHint = requestHint;
     window.stopReviewAnalysis = stopReviewAnalysis;
     window.runReviewAnalysis = runReviewAnalysis;
     window.setGameMode = setGameMode;

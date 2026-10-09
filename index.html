@@ -70,10 +70,12 @@
                 <div id="board" class="board" aria-label="Xiangqi board"></div>
                 <div class="action-row">
                     <button id="review-button" type="button" class="secondary-button" onclick="startReview()" hidden>復盤</button>
+                    <button id="hint-button" type="button" class="secondary-button" onclick="requestHint()" disabled>提示</button>
                     <button id="undo-button" type="button" class="secondary-button" onclick="undoMove()">&#24724;&#26827;</button>
                     <button type="button" class="secondary-button" onclick="openSetupPanel()">&#23565;&#23616;&#35373;&#23450;</button>
                     <button type="button" onclick="resetGame()">&#37325;&#26032;&#38283;&#22987;</button>
                 </div>
+                <div id="hint-status" class="hint-status" aria-live="polite"></div>
             </section>
             <aside class="history-panel" aria-label="Move log">
                 <h2 class="history-title">&#26827;&#35676;</h2>
@@ -83,7 +85,6 @@
                     <div class="review-actions">
                         <button id="review-prev" type="button" onclick="goToReview(reviewIndex - 1)">上一步</button>
                         <button id="review-next" type="button" onclick="goToReview(reviewIndex + 1)">下一步</button>
-                        <button id="review-suggestion" type="button" onclick="toggleReviewSuggestion()" aria-pressed="false" disabled>建議走法</button>
                         <button type="button" onclick="leaveReview()">退出復盤</button>
                     </div>
                     <div id="review-step"></div>

@@ -34,24 +34,23 @@ const base = process.env.TEST_URL || 'http://127.0.0.1:8080/chinese-chess-game/'
             assert.equal(await page.locator('#review-button').isVisible(), true);
             await page.click('#review-button');
             await page.waitForFunction(() => pikafishEngine.searching);
-            assert.equal(await page.locator('#review-suggestion').isDisabled(), true, 'pending analysis must not offer a stale arrow');
+            assert.equal(await page.locator('#review-suggestion').count(), 0, 'review must not require a suggestion button');
+            assert.equal(await page.locator('#review-arrow').isVisible(), false);
             await page.click('#review-stop');
             assert.equal(await page.evaluate(() => reviewRunning), false);
             await page.click('#review-resume');
             await page.waitForFunction(() => !!reviewSession.results[0]);
             await page.evaluate(() => goToReview(1));
-            await page.click('#review-suggestion');
             await page.waitForFunction(() => reviewSession.results.filter(Boolean).length === 4 && !reviewRunning, null, { timeout: 30000 });
-            assert.equal(await page.evaluate(() => reviewSuggestion), true, 'later analysis must preserve the selected step preview');
+            assert.equal(await page.evaluate(() => reviewIndex), 1, 'later analysis must preserve the selected after-move position');
             assert.equal(await page.locator('#review-arrow line').count(), 1);
-            await page.click('#review-suggestion');
             await page.evaluate(() => goToReview(0));
             await page.click('#review-next');
             assert.equal(await page.evaluate(() => reviewIndex), 1);
             await page.locator('.review-entry').nth(3).click();
             assert.equal(await page.evaluate(() => reviewIndex), 4);
             assert.equal(await page.locator('.review-grade').count(), 4);
-            assert.match(await page.locator('#review-best').textContent(), /建議走法：[^—]/);
+            assert.match(await page.locator('#review-best').textContent(), /正著：[^—]/);
             assert.match(await page.locator('#position-evaluation').textContent(), /紅方 [+-]\d/);
             assert.equal(await page.evaluate(() => JSON.stringify(board) === window.finalBoard && moveSequence.join('/') === window.finalHistory), true, 'browsing must not alter live board or history');
             const assertBoard = async index => {
@@ -76,31 +75,35 @@ const base = process.env.TEST_URL || 'http://127.0.0.1:8080/chinese-chess-game/'
                 assert.equal(geometry.pointer, 'none');
                 assert.equal(await page.locator('#review-arrow line').count(), 1);
             };
-            await assertBoard(4);
-            assert.equal(await page.locator('#review-arrow').isVisible(), false, 'ordinary review retains the after-move board without an arrow');
-            await page.click('#review-suggestion');
-            await assertBoard(3); await assertArrow();
-            assert.match(await page.locator('#review-step').textContent(), /走棋前/);
-            assert.equal(await page.locator('#review-suggestion').getAttribute('aria-pressed'), 'true');
+            await assertBoard(4); await assertArrow();
+            const assertBadge = async () => {
+                assert.equal(await page.evaluate(() => {
+                    const played = reviewSession.moves[reviewIndex - 1];
+                    const piece = document.querySelector(`.cell[data-row="${played.toRow}"][data-col="${played.toCol}"] .piece`);
+                    return piece.dataset.reviewGrade === reviewSession.results[reviewIndex - 1].grade.label &&
+                        getComputedStyle(piece, '::after').content !== 'none' && piece.style.getPropertyValue('--grade-color') !== '';
+                }), true, 'played destination must have the matching visible grade badge');
+                assert.equal(await page.locator('.piece[data-review-grade]').count(), 1);
+            };
+            await assertBadge();
+            assert.doesNotMatch(await page.locator('#review-step').textContent(), /走棋前/);
             await page.screenshot({ path: `test-results/${channel}-review-arrow-red.png`, fullPage: true });
-            await page.click('#review-suggestion'); await assertBoard(4);
+            await page.evaluate(() => goToReview(0));
             assert.equal(await page.locator('#review-arrow').isVisible(), false);
-            await page.click('#review-suggestion'); await page.click('#review-prev');
-            assert.equal(await page.evaluate(() => reviewSuggestion), false, 'step navigation clears the prior suggestion');
-            assert.equal(await page.locator('#review-arrow').isVisible(), false);
+            assert.equal(await page.locator('.piece[data-review-grade]').count(), 0);
+            await page.evaluate(() => goToReview(3)); await assertBoard(3); await assertArrow(); await assertBadge();
             await page.click('[data-row="6"][data-col="4"]');
             assert.equal(await page.evaluate(() => selectedCell), null, 'review board is read-only');
             await page.evaluate(() => { leaveReview(); humanColor = 'b'; computerColor = 'r'; startReview(); goToReview(1); });
             assert.equal(await page.locator('#position-evaluation').getAttribute('data-side'), 'black');
             assert.match(await page.locator('#position-evaluation').textContent(), /黑方 [+-]\d/);
-            await page.click('#review-suggestion');
             await page.waitForTimeout(250);
-            await assertBoard(0); await assertArrow();
+            await assertBoard(1); await assertArrow(); await assertBadge();
             await page.setViewportSize({ width: 375, height: 850 });
             await assertArrow();
             await page.screenshot({ path: `test-results/${channel}-review-arrow-black-mobile.png`, fullPage: true });
             assert.equal(await page.evaluate(() => JSON.stringify(board) === window.finalBoard && moveSequence.join('/') === window.finalHistory), true, 'arrow preview must not alter live history');
-            await page.click('#review-suggestion'); await assertBoard(1);
+            await assertBoard(1);
             await page.setViewportSize({ width: 1280, height: 720 });
             await page.screenshot({ path: `test-results/${channel}-review.png`, fullPage: true });
             const results = await page.evaluate(() => reviewSession.results.map(result => ({ label: result.grade.label, score: result.played.score, depth: result.best.depth })));
@@ -135,7 +138,7 @@ const base = process.env.TEST_URL || 'http://127.0.0.1:8080/chinese-chess-game/'
             assert.equal(await page.evaluate(() => !gameActive && moveSequence.length === 1), true);
             assert.deepEqual(errors, []); assert.deepEqual(external, []);
             fs.writeFileSync(`test-results/${channel}-review.json`, JSON.stringify({ base, channel, version: browser.version(), results, offline: true, errors, external }, null, 2));
-            console.log(`${channel}: real WASM offline review, before/after suggestion toggle, one arrow, flipped/mobile alignment, async navigation cleanup, end-only gate, stop/resume, all steps, player perspective, read-only history, stale restart and real checkmate review passed`);
+            console.log(`${channel}: real WASM offline after-move review, automatic best arrow and grade badge, flipped/mobile alignment, async navigation cleanup, end-only gate, stop/resume, all steps, player perspective, read-only history, stale restart and real checkmate review passed`);
         } finally { await browser.close(); }
     }
 })().catch(error => { console.error(error); process.exitCode = 1; });

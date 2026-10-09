@@ -601,3 +601,15 @@ button:hover {
 .review-grade { display: block; font-size: 12px; color: #9a3412; }
 
 #review-button[hidden], #review-panel[hidden], #review-stop[hidden], #review-resume[hidden] { display: none; }
+
+.piece[data-review-grade] { box-shadow: 0 0 0 3px var(--grade-color), 0 8px 12px rgba(0, 0, 0, 0.15); }
+.piece[data-review-grade]::after {
+    content: attr(data-grade-symbol);
+    position: absolute; top: -12%; right: -12%; width: 45%; height: 45%;
+    min-width: 14px; min-height: 14px; max-width: 23px; max-height: 23px; box-sizing: border-box;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; background: var(--grade-color); color: white;
+    font-size: clamp(9px, 1.8vw, 12px); font-family: sans-serif; border: 2px solid #fff7ed;
+}
+.hint-status { min-height: 1.5em; margin-top: 8px; color: #15803d; text-align: center; }
+#hint-button[hidden] { display: none; }
