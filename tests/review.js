@@ -30,6 +30,8 @@ assert.equal(classifyMove({ best: cp(20), played: { type: 'mate', value: 4 }, sa
     const result = await analyseMove(engine, { fen: 'initial', history: ['a3a4'], played: 'c3c4', legal: ['a3a4', 'c3c4'], current: () => !cancelled });
     assert.equal(require('../pikafish-adapter.js').moveToUci(result.best.move), 'a3a4');
     assert.deepEqual(commands[1].searchmoves, ['a3a4', 'c3c4']);
+    assert.equal(commands[1].movetime, 2000, 'best-move review uses two seconds');
+    assert.equal(commands[3].movetime, 2000, 'actual-move review uses two seconds');
     assert.deepEqual(commands[3].searchmoves, ['c3c4'], 'actual move must be searched in the same starting position and perspective');
     assert.deepEqual(commands[0].history, ['a3a4']);
     cancelled = true;

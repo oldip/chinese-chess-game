@@ -2575,7 +2575,7 @@ function requestHint() {
         if (!current()) return;
         await engine.setPosition(boardToFen(initialBoard, RED_COLOR), history.map(key => moveToUci(parseMoveKey(key))));
         if (!current()) return;
-        const move = await engine.getBestMove({ movetime: 500, searchmoves: legal.map(moveToUci) });
+        const move = await engine.getBestMove({ movetime: 2000, searchmoves: legal.map(moveToUci) });
         if (!current()) return;
         const candidate = legal.find(candidate => sameMove(candidate, move));
         if (!candidate) throw new Error('No legal hint');

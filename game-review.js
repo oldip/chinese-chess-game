@@ -31,13 +31,13 @@
         if (!current()) return null;
         await engine.setPosition(fen, history);
         if (!current()) return null;
-        const best = await engine.getAnalysis({ movetime: 500, searchmoves: legal });
+        const best = await engine.getAnalysis({ movetime: 2000, searchmoves: legal });
         if (!current()) return null;
         const same = !!best.move && moveToUci(best.move) === played;
         if (same) return { best, played: best, same };
         await engine.setPosition(fen, history);
         if (!current()) return null;
-        const actual = await engine.getAnalysis({ movetime: 500, searchmoves: [played] });
+        const actual = await engine.getAnalysis({ movetime: 2000, searchmoves: [played] });
         return current() ? { best, played: actual, same } : null;
     }
     const api = { classifyMove, analyseMove };

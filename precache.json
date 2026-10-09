@@ -1,5 +1,5 @@
 {
-  "version": "pikafish-04d57be1b02b2820",
+  "version": "pikafish-09589d8bf3fbfe46",
   "files": [
     {
       "path": "index.html",
@@ -13,13 +13,13 @@
     },
     {
       "path": "game.js",
-      "bytes": 132766,
-      "sha256": "f1eef134e767950ec6534e4976b593fabe84af512454a9e79060805f7b4ed70a"
+      "bytes": 132767,
+      "sha256": "e7f90a7f4ed794fe79586fd51df9a0fe0701e10f8c7f4d7a886941f698c13da4"
     },
     {
       "path": "game-review.js",
-      "bytes": 3031,
-      "sha256": "50d8297b365de504de5e072be262b50b5c42bbe0a40ea7d0f124b342ec9b6e6a"
+      "bytes": 3033,
+      "sha256": "97cc57521d823b143c6f0001ad348acb3be540d7235e261cbc738b8d9702c87a"
     },
     {
       "path": "cloud-opening-book.js",

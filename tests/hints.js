@@ -29,7 +29,7 @@ const run = code => vm.runInContext(code, ctx);
     assert.equal(run('remainingUndos'), 10, 'hint and undo budgets are independent');
     assert.equal(run('JSON.stringify(board) + moveSequence.join()'), original, 'hint does not play or alter history');
     assert.equal(configurations.at(-1).skill, 20, 'hints use full strength regardless of opponent level');
-    assert.equal(searches.at(-1).movetime, 500);
+    assert.equal(searches.at(-1).movetime, 2000);
     assert.deepEqual(Array.from(positions.at(-1).moves), []);
     const count = searches.length;
     await run('requestHint()');
